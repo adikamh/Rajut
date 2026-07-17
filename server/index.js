@@ -17,10 +17,18 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const JWT_SECRET = process.env.JWT_SECRET || 'rajut_secret_token_key_123!'
 
-// Ensure the public uploads directory exists
-const uploadsDir = path.resolve(__dirname, '../public/uploads')
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true })
+// Ensure the public uploads directory exists safely (using /tmp on Vercel)
+const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production'
+const uploadsDir = isVercel
+  ? path.join('/tmp', 'uploads')
+  : path.resolve(__dirname, '../public/uploads')
+
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true })
+  }
+} catch (err) {
+  console.warn('Could not create uploads directory:', err.message)
 }
 
 app.use(cors())
@@ -162,15 +170,25 @@ app.get('/api/projects', async (req, res) => {
   }
 })
 
-app.post('/api/projects', authenticateToken, requireAdmin, async (req, res) => {
+app.post('/api/projects', authenticateToken, requireAdmin, upload.single('image'), async (req, res) => {
   try {
     const { title, description } = req.body
     if (!title || !description) {
       return res.status(400).json({ error: 'Title and description are required' })
     }
 
-    const [result] = await db.query('INSERT INTO projects (title, description) VALUES (?, ?)', [title, description])
-    res.status(201).json({ id: result.insertId, title, description })
+    let imageUrl = null
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`
+    } else if (req.body.image_url) {
+      imageUrl = req.body.image_url
+    }
+
+    const [result] = await db.query(
+      'INSERT INTO projects (title, description, image_url) VALUES (?, ?, ?)',
+      [title, description, imageUrl]
+    )
+    res.status(201).json({ id: result.insertId, title, description, image_url: imageUrl })
   } catch (error) {
     console.error('Error creating project:', error)
     res.status(500).json({ error: 'Failed to create project' })
@@ -206,6 +224,10 @@ app.post('/api/contact', async (req, res) => {
   }
 })
 
-app.listen(PORT, () => {
-  console.log(`Express API Server running at http://localhost:${PORT}`)
-})
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Express API Server running at http://localhost:${PORT}`)
+  })
+}
+
+export default app

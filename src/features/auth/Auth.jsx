@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
 import Button from '../../components/ui/Button'
 import { loginUser, registerUser } from '../../services/api'
+import { useNotification } from '../../context/NotificationContext'
 
 export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
-  const [tab, setTab] = useState('login') // 'login' or 'register'
+  const { showToast } = useNotification()
+  const [tab, setTab] = useState('login')
   
   // Login State
   const [loginEmail, setLoginEmail] = useState('')
@@ -17,33 +19,29 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regPassword, setRegPassword] = useState('')
 
   const [loading, setLoading] = useState(false)
-  const [errorMessage, setErrorMessage] = useState('')
-  const [successMessage, setSuccessMessage] = useState('')
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setErrorMessage('')
-    setSuccessMessage('')
+    showToast('Sedang masuk...', 'loading', 0)
 
     try {
       const data = await loginUser(loginEmail.trim(), loginPassword)
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       onLoginSuccess(data.user)
-      setSuccessMessage('Login berhasil! Mengalihkan...')
       
-      // Clear inputs
+      showToast('Masuk berhasil! Selamat datang kembali.', 'success')
+      
       setLoginEmail('')
       setLoginPassword('')
 
       setTimeout(() => {
-        setSuccessMessage('')
         onSectionChange('home')
       }, 1000)
     } catch (err) {
       console.error(err)
-      setErrorMessage(err.message || 'Email atau password salah!')
+      showToast(err.message || 'Email atau password salah!', 'error')
     } finally {
       setLoading(false)
     }
@@ -52,8 +50,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    setErrorMessage('')
-    setSuccessMessage('')
+    showToast('Pendaftaran akun...', 'loading', 0)
 
     const userData = {
       name: regName.trim(),
@@ -61,7 +58,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       phone: regPhone.trim(),
       email: regEmail.trim(),
       password: regPassword,
-      role: 'user' // Default role for registration is 'user' (read-only)
+      role: 'user'
     }
 
     try {
@@ -69,9 +66,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       onLoginSuccess(data.user)
-      setSuccessMessage('Pendaftaran berhasil! Mengalihkan...')
       
-      // Clear inputs
+      showToast('Pendaftaran akun berhasil!', 'success')
+      
       setRegName('')
       setRegAddress('')
       setRegPhone('')
@@ -79,12 +76,11 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       setRegPassword('')
 
       setTimeout(() => {
-        setSuccessMessage('')
         onSectionChange('home')
       }, 1000)
     } catch (err) {
       console.error(err)
-      setErrorMessage(err.message || 'Gagal mendaftar!')
+      showToast(err.message || 'Gagal mendaftar!', 'error')
     } finally {
       setLoading(false)
     }
@@ -131,30 +127,18 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             <button 
               type="button" 
               style={getTabStyle('login')} 
-              onClick={() => { setTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
+              onClick={() => { setTab('login'); }}
             >
               Masuk
             </button>
             <button 
               type="button" 
               style={getTabStyle('register')} 
-              onClick={() => { setTab('register'); setErrorMessage(''); setSuccessMessage(''); }}
+              onClick={() => { setTab('register'); }}
             >
               Daftar
             </button>
           </div>
-
-          {/* Success / Error Messages */}
-          {errorMessage && (
-            <div style={{ background: '#f8d7da', color: '#721c24', padding: '12px', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              {errorMessage}
-            </div>
-          )}
-          {successMessage && (
-            <div style={{ background: '#d4edda', color: '#155724', padding: '12px', borderRadius: '8px', marginBottom: '1.5rem', fontSize: '0.95rem' }}>
-              {successMessage}
-            </div>
-          )}
 
           {/* Login Form */}
           {tab === 'login' ? (
@@ -184,11 +168,6 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: '1.5rem' }}>
                 {loading ? 'Memproses...' : 'Masuk'}
               </Button>
-              <p style={{ fontSize: '0.9rem', color: '#6c757d', textAlign: 'center', marginTop: '1.5rem' }}>
-                Akun Demo Uji Coba:<br />
-                Admin: <strong>admin@tokorajut.com</strong> (pass: <strong>admin</strong>)<br />
-                User Biasa: <strong>user@tokorajut.com</strong> (pass: <strong>user</strong>)
-              </p>
             </form>
           ) : (
             // Register Form

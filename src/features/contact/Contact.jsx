@@ -1,8 +1,10 @@
 import React, { useState } from 'react'
 import Button from '../../components/ui/Button'
 import { submitContact } from '../../services/api'
+import { useNotification } from '../../context/NotificationContext'
 
 export default function Contact({ isActive }) {
+  const { showToast } = useNotification()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,15 +25,16 @@ export default function Contact({ isActive }) {
     const { name, email, message } = formData
 
     if (!name || !email || !message) {
-      alert('Please fill in all fields')
+      showToast('Harap isi semua kolom terlebih dahulu!', 'error')
       return
     }
 
     setSubmitting(true)
+    showToast('Sedang mengirim pesan Anda...', 'loading', 0)
 
     try {
       await submitContact(name, email, message)
-      alert(`Terima kasih ${name}! Pesan Anda telah disimpan ke database dan notifikasi email dikirimkan.`)
+      showToast(`Pesan terkirim! Terima kasih ${name}.`, 'success')
       
       setFormData({
         name: '',
@@ -40,7 +43,7 @@ export default function Contact({ isActive }) {
       })
     } catch (err) {
       console.error(err)
-      alert(`Gagal mengirimkan pesan: ${err.message}`)
+      showToast(`Gagal mengirim pesan: ${err.message}`, 'error')
     } finally {
       setSubmitting(false)
     }

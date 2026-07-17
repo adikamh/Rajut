@@ -1,4 +1,6 @@
-const API_BASE_URL = 'http://localhost:3001/api'
+const API_BASE_URL = typeof window !== 'undefined' && window.location.origin.includes('localhost')
+  ? 'http://localhost:3001/api'
+  : '/api'
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token')
@@ -83,15 +85,30 @@ export async function fetchProjects() {
   return response.json()
 }
 
-export async function createProject(title, description) {
-  const response = await fetch(`${API_BASE_URL}/projects`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...getAuthHeaders()
-    },
-    body: JSON.stringify({ title, description })
-  })
+export async function createProject(title, description, imageFileOrUrl, isFile = false) {
+  let response
+  if (isFile) {
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('description', description)
+    formData.append('image', imageFileOrUrl)
+    response = await fetch(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    })
+  } else {
+    response = await fetch(`${API_BASE_URL}/projects`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ title, description, image_url: imageFileOrUrl })
+    })
+  }
 
   if (!response.ok) {
     const err = await response.json()
