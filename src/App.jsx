@@ -115,8 +115,24 @@ export default function App() {
     setGallery((prev) => [newItem, ...prev])
   }
 
+  const handleUpdateGalleryItem = (updatedItem) => {
+    setGallery((prev) => prev.map((item) => item.id === updatedItem.id ? updatedItem : item))
+  }
+
+  const handleDeleteGalleryItem = (id) => {
+    setGallery((prev) => prev.filter((item) => item.id !== id))
+  }
+
   const handleAddProjectItem = (newItem) => {
     setProjects((prev) => [newItem, ...prev])
+  }
+
+  const handleUpdateProjectItem = (updatedItem) => {
+    setProjects((prev) => prev.map((proj) => proj.id === updatedItem.id ? updatedItem : proj))
+  }
+
+  const handleDeleteProjectItem = (id) => {
+    setProjects((prev) => prev.filter((proj) => proj.id !== id))
   }
 
   const handleLoginSuccess = (loggedInUser) => {
@@ -133,13 +149,13 @@ export default function App() {
 
   return (
     <>
-      <Header 
-        activeSection={activeSection} 
-        onSectionChange={changeSection} 
+      <Header
+        activeSection={activeSection}
+        onSectionChange={changeSection}
         user={user}
         onLogout={handleLogout}
       />
-      
+
       {error && (
         <div style={{
           background: '#f8d7da',
@@ -156,31 +172,35 @@ export default function App() {
       )}
 
       <main>
-        <Home 
-          isActive={activeSection === 'home'} 
-          onSectionChange={changeSection} 
-          projects={projects.slice(0, 4)} 
+        <Home
+          isActive={activeSection === 'home'}
+          onSectionChange={changeSection}
+          projects={projects.slice(0, 4)}
           loading={loading}
         />
-        <Gallery 
-          isActive={activeSection === 'gallery'} 
-          galleryItems={gallery} 
+        <Gallery
+          isActive={activeSection === 'gallery'}
+          galleryItems={gallery}
           onAddImage={handleAddGalleryItem}
+          onUpdateImage={handleUpdateGalleryItem}
+          onDeleteImage={handleDeleteGalleryItem}
           loading={loading}
           user={user}
         />
-        <Projects 
-          isActive={activeSection === 'projects'} 
-          projectsList={projects} 
+        <Projects
+          isActive={activeSection === 'projects'}
+          projectsList={projects}
           onAddProject={handleAddProjectItem}
+          onUpdateProject={handleUpdateProjectItem}
+          onDeleteProject={handleDeleteProjectItem}
           loading={loading}
           user={user}
         />
         <About isActive={activeSection === 'about'} />
         <Contact isActive={activeSection === 'contact'} />
-        <Auth 
-          isActive={activeSection === 'auth'} 
-          onLoginSuccess={handleLoginSuccess} 
+        <Auth
+          isActive={activeSection === 'auth'}
+          onLoginSuccess={handleLoginSuccess}
           onSectionChange={changeSection}
         />
       </main>

@@ -132,3 +132,97 @@ export async function submitContact(name, email, message) {
   }
   return response.json()
 }
+
+export async function updateGalleryImage(id, imageFileOrUrl, isFile = false) {
+  let response
+  if (isFile) {
+    const formData = new FormData()
+    formData.append('image', imageFileOrUrl)
+    response = await fetch(`${API_BASE_URL}/gallery/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    })
+  } else {
+    response = await fetch(`${API_BASE_URL}/gallery/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ image_url: imageFileOrUrl })
+    })
+  }
+
+  if (!response.ok) {
+    const err = await response.json()
+    throw new Error(err.error || 'Failed to update image')
+  }
+  return response.json()
+}
+
+export async function deleteGalleryImage(id) {
+  const response = await fetch(`${API_BASE_URL}/gallery/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders()
+    }
+  })
+
+  if (!response.ok) {
+    const err = await response.json()
+    throw new Error(err.error || 'Failed to delete gallery image')
+  }
+  return response.json()
+}
+
+export async function updateProject(id, title, description, imageFileOrUrl, isFile = false) {
+  let response
+  if (isFile) {
+    const formData = new FormData()
+    formData.append('title', title)
+    formData.append('description', description)
+    if (imageFileOrUrl) {
+      formData.append('image', imageFileOrUrl)
+    }
+    response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: formData
+    })
+  } else {
+    response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify({ title, description, image_url: imageFileOrUrl })
+    })
+  }
+
+  if (!response.ok) {
+    const err = await response.json()
+    throw new Error(err.error || 'Failed to update project')
+  }
+  return response.json()
+}
+
+export async function deleteProject(id) {
+  const response = await fetch(`${API_BASE_URL}/projects/${id}`, {
+    method: 'DELETE',
+    headers: {
+      ...getAuthHeaders()
+    }
+  })
+
+  if (!response.ok) {
+    const err = await response.json()
+    throw new Error(err.error || 'Failed to delete project')
+  }
+  return response.json()
+}

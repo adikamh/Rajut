@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url'
 import fs from 'fs'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import db from './db.js'
+import db from './db.js' // db is now the Supabase client
 import { sendContactEmail } from './mailer.js'
 import { authenticateToken, requireAdmin } from './authMiddleware.js'
 
@@ -67,20 +67,41 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
     }
 
-    const [existingUsers] = await db.query('SELECT * FROM users WHERE email = ?', [email])
-    if (existingUsers.length > 0) {
+    const { data: existingUsers, error: selectErr } = await db
+      .from('users')
+      .select('*')
+      .eq('email', email)
+
+    if (selectErr) {
+      console.error('Supabase select check error:', selectErr)
+      return res.status(500).json({ error: 'Gagal memeriksa ketersediaan email.' })
+    }
+
+    if (existingUsers && existingUsers.length > 0) {
       return res.status(400).json({ error: 'Email sudah terdaftar!' })
     }
 
     const finalRole = (role === 'admin' || role === 'user') ? role : 'user'
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const [result] = await db.query(`
-      INSERT INTO users (name, address, phone, email, password, role)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [name, address, phone, email, hashedPassword, finalRole])
+    const { data: insertedUser, error: insertErr } = await db
+      .from('users')
+      .insert([{ 
+        name, 
+        address, 
+        phone, 
+        email, 
+        password: hashedPassword, 
+        role: finalRole 
+      }])
+      .select()
 
-    const newUser = { id: result.insertId, name, email, role: finalRole }
+    if (insertErr) {
+      console.error('Supabase user insert error:', insertErr)
+      return res.status(500).json({ error: 'Gagal menyimpan data pengguna baru.' })
+    }
+
+    const newUser = { id: insertedUser[0].id, name, email, role: finalRole }
     const token = generateToken(newUser)
 
     res.status(201).json({
@@ -102,8 +123,17 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email dan password harus diisi!' })
     }
 
-    const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email])
-    if (users.length === 0) {
+    const { data: users, error: selectErr } = await db
+      .from('users')
+      .select('*')
+      .eq('email', email)
+
+    if (selectErr) {
+      console.error('Supabase login check error:', selectErr)
+      return res.status(500).json({ error: 'Gagal melakukan verifikasi akun.' })
+    }
+
+    if (!users || users.length === 0) {
       return res.status(400).json({ error: 'Email atau password salah!' })
     }
 
@@ -131,8 +161,13 @@ app.post('/api/auth/login', async (req, res) => {
 // 1. Gallery
 app.get('/api/gallery', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM gallery ORDER BY id DESC')
-    res.json(rows)
+    const { data: rows, error } = await db
+      .from('gallery')
+      .select('*')
+      .order('id', { ascending: false })
+
+    if (error) throw error
+    res.json(rows || [])
   } catch (error) {
     console.error('Error fetching gallery:', error)
     res.status(500).json({ error: 'Failed to fetch gallery' })
@@ -151,19 +186,72 @@ app.post('/api/gallery', authenticateToken, requireAdmin, upload.single('image')
       return res.status(400).json({ error: 'No image file or URL provided' })
     }
 
-    const [result] = await db.query('INSERT INTO gallery (image_url) VALUES (?)', [imageUrl])
-    res.status(201).json({ id: result.insertId, image_url: imageUrl })
+    const { data: inserted, error } = await db
+      .from('gallery')
+      .insert([{ image_url: imageUrl }])
+      .select()
+
+    if (error) throw error
+    res.status(201).json(inserted[0])
   } catch (error) {
     console.error('Error creating gallery item:', error)
     res.status(500).json({ error: 'Failed to save gallery item' })
   }
 })
 
+app.put('/api/gallery/:id', authenticateToken, requireAdmin, upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params
+    let imageUrl = ''
+
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`
+    } else if (req.body.image_url) {
+      imageUrl = req.body.image_url
+    } else {
+      return res.status(400).json({ error: 'No image file or URL provided' })
+    }
+
+    const { data, error } = await db
+      .from('gallery')
+      .update({ image_url: imageUrl })
+      .eq('id', id)
+      .select()
+
+    if (error) throw error
+    res.json(data[0])
+  } catch (error) {
+    console.error('Error updating gallery item:', error)
+    res.status(500).json({ error: 'Failed to update gallery item' })
+  }
+})
+
+app.delete('/api/gallery/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { error } = await db
+      .from('gallery')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    res.json({ message: 'Gallery item deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting gallery item:', error)
+    res.status(500).json({ error: 'Failed to delete gallery item' })
+  }
+})
+
 // 2. Projects
 app.get('/api/projects', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT * FROM projects ORDER BY id DESC')
-    res.json(rows)
+    const { data: rows, error } = await db
+      .from('projects')
+      .select('*')
+      .order('id', { ascending: false })
+
+    if (error) throw error
+    res.json(rows || [])
   } catch (error) {
     console.error('Error fetching projects:', error)
     res.status(500).json({ error: 'Failed to fetch projects' })
@@ -184,14 +272,64 @@ app.post('/api/projects', authenticateToken, requireAdmin, upload.single('image'
       imageUrl = req.body.image_url
     }
 
-    const [result] = await db.query(
-      'INSERT INTO projects (title, description, image_url) VALUES (?, ?, ?)',
-      [title, description, imageUrl]
-    )
-    res.status(201).json({ id: result.insertId, title, description, image_url: imageUrl })
+    const { data: inserted, error } = await db
+      .from('projects')
+      .insert([{ title, description, image_url: imageUrl }])
+      .select()
+
+    if (error) throw error
+    res.status(201).json(inserted[0])
   } catch (error) {
     console.error('Error creating project:', error)
     res.status(500).json({ error: 'Failed to create project' })
+  }
+})
+
+app.put('/api/projects/:id', authenticateToken, requireAdmin, upload.single('image'), async (req, res) => {
+  try {
+    const { id } = req.params
+    const { title, description } = req.body
+    if (!title || !description) {
+      return res.status(400).json({ error: 'Title and description are required' })
+    }
+
+    let imageUrl = req.body.image_url || null
+    if (req.file) {
+      imageUrl = `/uploads/${req.file.filename}`
+    }
+
+    const updateData = { title, description }
+    if (imageUrl !== null && imageUrl !== undefined) {
+      updateData.image_url = imageUrl
+    }
+
+    const { data, error } = await db
+      .from('projects')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+
+    if (error) throw error
+    res.json(data[0])
+  } catch (error) {
+    console.error('Error updating project:', error)
+    res.status(500).json({ error: 'Failed to update project' })
+  }
+})
+
+app.delete('/api/projects/:id', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params
+    const { error } = await db
+      .from('projects')
+      .delete()
+      .eq('id', id)
+
+    if (error) throw error
+    res.json({ message: 'Project deleted successfully' })
+  } catch (error) {
+    console.error('Error deleting project:', error)
+    res.status(500).json({ error: 'Failed to delete project' })
   }
 })
 
@@ -203,20 +341,22 @@ app.post('/api/contact', async (req, res) => {
       return res.status(400).json({ error: 'All fields (name, email, message) are required' })
     }
 
-    const [result] = await db.query(
-      'INSERT INTO contact_messages (name, email, message) VALUES (?, ?, ?)',
-      [name, email, message]
-    )
+    const { data: inserted, error } = await db
+      .from('contact_messages')
+      .insert([{ name, email, message }])
+      .select()
+
+    if (error) throw error
 
     try {
       await sendContactEmail({ name, email, message })
     } catch (emailError) {
-      console.error('Email failed to send but message was saved to database:', emailError)
+      console.error('Email failed to send but message was saved to Supabase:', emailError)
     }
 
     res.status(201).json({
       message: 'Message received and saved successfully',
-      id: result.insertId
+      id: inserted[0].id
     })
   } catch (error) {
     console.error('Error saving contact message:', error)

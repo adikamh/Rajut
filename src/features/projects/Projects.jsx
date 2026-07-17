@@ -1,23 +1,41 @@
 import React, { useState } from 'react'
 import Button from '../../components/ui/Button'
-import { createProject } from '../../services/api'
+import { createProject, updateProject, deleteProject } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 
-export default function Projects({ isActive, projectsList = [], onAddProject, loading, user }) {
+export default function Projects({ isActive, projectsList = [], onAddProject, onUpdateProject, onDeleteProject, loading, user }) {
   const { showToast } = useNotification()
   const [selectedProject, setSelectedProject] = useState(null)
   
   // Creation States
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [uploadMode, setUploadMode] = useState('file') // 'file' or 'url'
+  const [uploadMode, setUploadMode] = useState('file')
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // Edit States
+  const [editingProject, setEditingProject] = useState(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editUploadMode, setEditUploadMode] = useState('file')
+  const [editImageUrlInput, setEditImageUrlInput] = useState('')
+  const [editSelectedFile, setEditSelectedFile] = useState(null)
+  const [updating, setUpdating] = useState(false)
+
+  // Custom Delete Confirm State
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedFile(e.target.files[0])
+    }
+  }
+
+  const handleEditFileChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setEditSelectedFile(e.target.files[0])
     }
   }
 
@@ -37,7 +55,7 @@ export default function Projects({ isActive, projectsList = [], onAddProject, lo
         result = await createProject(
           title.trim(), 
           description.trim(), 
-          selectedFile, // File or null
+          selectedFile,
           !!selectedFile
         )
       } else {
@@ -63,6 +81,65 @@ export default function Projects({ isActive, projectsList = [], onAddProject, lo
       showToast(`Gagal menyimpan proyek: ${err.message}`, 'error')
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault()
+    if (!editTitle.trim() || !editDescription.trim()) {
+      showToast('Judul dan deskripsi harus diisi!', 'error')
+      return
+    }
+
+    setUpdating(true)
+    showToast('Sedang menyimpan perubahan proyek...', 'loading', 0)
+
+    try {
+      let result
+      if (editUploadMode === 'file') {
+        result = await updateProject(
+          editingProject.id,
+          editTitle.trim(),
+          editDescription.trim(),
+          editSelectedFile, // File or null
+          !!editSelectedFile
+        )
+      } else {
+        result = await updateProject(
+          editingProject.id,
+          editTitle.trim(),
+          editDescription.trim(),
+          editImageUrlInput.trim(),
+          false
+        )
+      }
+
+      onUpdateProject(result)
+      setEditingProject(null)
+      setEditTitle('')
+      setEditDescription('')
+      setEditImageUrlInput('')
+      setEditSelectedFile(null)
+      showToast('Proyek berhasil diperbarui!', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast(`Gagal memperbarui proyek: ${err.message}`, 'error')
+    } finally {
+      setUpdating(false)
+    }
+  }
+
+  const confirmDeleteProject = async (id) => {
+    setDeleteConfirmId(null)
+    showToast('Sedang menghapus proyek...', 'loading', 0)
+
+    try {
+      await deleteProject(id)
+      onDeleteProject(id)
+      showToast('Proyek berhasil dihapus!', 'success')
+    } catch (err) {
+      console.error(err)
+      showToast(`Gagal menghapus proyek: ${err.message}`, 'error')
     }
   }
 
@@ -238,14 +315,14 @@ export default function Projects({ isActive, projectsList = [], onAddProject, lo
               key={project.id || index} 
               className="project-card"
               onClick={() => setSelectedProject({ ...project, imgUrl: getProjectImgUrl(project, index) })}
-              style={{ overflow: 'hidden' }}
+              style={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}
             >
               <img 
                 src={getProjectImgUrl(project, index)} 
                 alt={project.title} 
                 style={{ width: '100%', height: '200px', objectFit: 'cover' }}
               />
-              <div className="work-info" style={{ padding: '1.5rem' }}>
+              <div className="work-info" style={{ padding: '1.5rem', flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
                 <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>{project.title}</h3>
                 <p style={{
                   fontSize: '0.95rem',
@@ -255,10 +332,64 @@ export default function Projects({ isActive, projectsList = [], onAddProject, lo
                   WebkitBoxOrient: 'vertical',
                   overflow: 'hidden',
                   lineHeight: '1.5',
-                  margin: 0
+                  margin: '0 0 1rem 0',
+                  flexGrow: 1
                 }}>
                   {project.description}
                 </p>
+
+                {/* Admin edit/delete buttons inside the card */}
+                {user && user.role === 'admin' && (
+                  <div 
+                    style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid #f1f3f5', paddingTop: '1rem' }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        setEditingProject(project)
+                        setEditTitle(project.title)
+                        setEditDescription(project.description)
+                        if (project.image_url && project.image_url.startsWith('http')) {
+                          setEditUploadMode('url')
+                          setEditImageUrlInput(project.image_url)
+                        } else {
+                          setEditUploadMode('file')
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '6px 12px',
+                        minHeight: 'auto',
+                        fontSize: '0.85rem',
+                        background: '#d2691e',
+                        border: 'none',
+                        color: 'white',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      ✎ Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => setDeleteConfirmId(project.id)}
+                      style={{
+                        flex: 1,
+                        padding: '6px 12px',
+                        minHeight: 'auto',
+                        fontSize: '0.85rem',
+                        background: '#dc3545',
+                        border: 'none',
+                        color: 'white',
+                        borderRadius: '6px'
+                      }}
+                    >
+                      ✕ Hapus
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -312,6 +443,168 @@ export default function Projects({ isActive, projectsList = [], onAddProject, lo
               }}>
                 {selectedProject.description}
               </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Project Modal */}
+      {editingProject && (
+        <div style={modalOverlayStyle} onClick={() => setEditingProject(null)}>
+          <div style={{ ...modalContentStyle, padding: '2rem', maxWidth: '600px', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '1.25rem', color: '#d2691e', marginBottom: '1.5rem', textAlign: 'center' }}>
+              Edit Detail Proyek
+            </h3>
+
+            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', justifyContent: 'center' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditUploadMode('file')}
+                style={{
+                  padding: '8px 16px',
+                  minHeight: 'auto',
+                  fontSize: '0.9rem',
+                  background: editUploadMode === 'file' ? '#d2691e' : '#e9ecef',
+                  color: editUploadMode === 'file' ? 'white' : '#1a1a1a',
+                  border: 'none',
+                  borderRadius: '8px'
+                }}
+              >
+                Upload File
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditUploadMode('url')}
+                style={{
+                  padding: '8px 16px',
+                  minHeight: 'auto',
+                  fontSize: '0.9rem',
+                  background: editUploadMode === 'url' ? '#d2691e' : '#e9ecef',
+                  color: editUploadMode === 'url' ? 'white' : '#1a1a1a',
+                  border: 'none',
+                  borderRadius: '8px'
+                }}
+              >
+                Gunakan URL
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit}>
+              <div className="form-group">
+                <label htmlFor="editProjectTitle" style={{ fontWeight: '500' }}>Judul Proyek</label>
+                <input
+                  type="text"
+                  id="editProjectTitle"
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  required
+                />
+              </div>
+
+              {editUploadMode === 'file' ? (
+                <div className="form-group">
+                  <label htmlFor="editProjectFileInput" style={{ fontWeight: '500' }}>Foto Proyek Baru (File)</label>
+                  <input
+                    type="file"
+                    id="editProjectFileInput"
+                    accept="image/*"
+                    onChange={handleEditFileChange}
+                    style={{ border: 'none', padding: '10px 0' }}
+                  />
+                  {editingProject.image_url && !editingProject.image_url.startsWith('http') && (
+                    <p style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '5px' }}>
+                      File saat ini: {editingProject.image_url}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="form-group">
+                  <label htmlFor="editProjectUrlInput" style={{ fontWeight: '500' }}>Foto Proyek Baru (URL)</label>
+                  <input
+                    type="url"
+                    id="editProjectUrlInput"
+                    placeholder="https://example.com/project.jpg"
+                    value={editImageUrlInput}
+                    onChange={(e) => setEditImageUrlInput(e.target.value)}
+                  />
+                </div>
+              )}
+
+              <div className="form-group">
+                <label htmlFor="editProjectDescription" style={{ fontWeight: '500' }}>Deskripsi Proyek</label>
+                <textarea
+                  id="editProjectDescription"
+                  value={editDescription}
+                  onChange={(e) => setEditDescription(e.target.value)}
+                  style={{ height: '100px', minHeight: '100px' }}
+                  required
+                ></textarea>
+              </div>
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+                <Button type="submit" disabled={updating} style={{ flex: 1 }}>
+                  {updating ? 'Menyimpan...' : 'Simpan'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => setEditingProject(null)}
+                  style={{ flex: 1, background: '#e9ecef', color: '#1a1a1a' }}
+                >
+                  Batal
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Premium Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div style={modalOverlayStyle} onClick={() => setDeleteConfirmId(null)}>
+          <div style={{ ...modalContentStyle, padding: '2rem', maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ fontSize: '1.25rem', color: '#dc3545', marginBottom: '1rem', textAlign: 'center' }}>
+              Hapus Proyek?
+            </h3>
+            <p style={{ textAlign: 'center', color: '#6c757d', marginBottom: '2rem', lineHeight: '1.5' }}>
+              Apakah Anda yakin ingin menghapus proyek ini? Tindakan ini tidak dapat dibatalkan.
+            </p>
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => confirmDeleteProject(deleteConfirmId)}
+                style={{
+                  flex: 1,
+                  background: '#dc3545',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Hapus
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setDeleteConfirmId(null)}
+                style={{
+                  flex: 1,
+                  background: '#e9ecef',
+                  color: '#1a1a1a',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  fontWeight: '500',
+                  cursor: 'pointer'
+                }}
+              >
+                Batal
+              </button>
             </div>
           </div>
         </div>
