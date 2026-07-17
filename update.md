@@ -184,6 +184,7 @@ Menambahkan fitur pendaftaran akun baru, login sesi, otorisasi token JWT, dan ko
 - Berkas penampil halaman Autentikasi.
 - Mendesain antarmuka eksklusif dengan card premium untuk Masuk dan Daftar.
 - Mengirimkan detail isian nama, alamat, no telepon, email, password ke server API dan menyimpan sesi pengguna yang berhasil masuk.
+- **Pembaruan Sekunder**: Menghapus teks penjelas/helper Akun Demo Uji Coba dari tampilan bawah form login.
 
 ### 31. [src/components/shared/Header.jsx](file:///c:/laragon/www/Rajut/src/components/shared/Header.jsx) (Diubah)
 - Menampilkan menu dinamis. Menambahkan link tombol "Masuk / Daftar" di sebelah kanan navigasi utama jika belum masuk sesi.
@@ -197,3 +198,61 @@ Menambahkan fitur pendaftaran akun baru, login sesi, otorisasi token JWT, dan ko
 ### 33. [src/features/gallery/Gallery.jsx` & `Projects.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) (Diubah)
 - **Gallery.jsx**: Menyembunyikan form unggah berkas gambar secara total jika pengguna belum login atau hanya bertindak sebagai `'user'` biasa. Form upload hanya dimunculkan jika `user.role === 'admin'`.
 - **Projects.jsx**: Menyembunyikan form pengisian proyek baru secara total untuk pengguna biasa. Form hanya dapat diakses oleh `'admin'`.
+
+---
+---
+
+## Integrasi Gambar Proyek, Modal Popup Proyek, & Sistem Notifikasi Toast Premium (Update Paling Baru)
+
+Menambahkan fitur unggahan foto footage untuk proyek, penampil popup modal detail proyek saat diklik, dan sistem notifikasi melayang (Toast Alert) premium yang menggantikan fungsi standar `alert()`.
+
+### 34. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
+- Menambahkan efek hover kartu proyek (mengangkat kartu sedikit dengan drop shadow dinamis) dan mengubah kursor mouse menjadi `pointer`.
+- Menambahkan keyframes CSS `@keyframes spin` untuk spinner memuat data, serta `@keyframes slideUp` untuk memunculkan modal/toast dengan efek slide lembut.
+
+### 35. [server/db.js](file:///c:/laragon/www/Rajut/server/db.js) (Diubah)
+- Menambahkan pemeriksaan skema database: menambahkan kolom `image_url` pada tabel `projects` jika belum ada melalui perintah `ALTER TABLE`.
+- Memperbarui seeding data proyek bawaan agar menyertakan foto Unsplash berkualitas tinggi.
+
+### 36. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
+- Memperbarui rute `POST /api/projects` agar dilindungi oleh middleware `upload.single('image')`. Endpoint kini menerima kiriman berkas foto dari Admin (disimpan di folder `public/uploads/`) maupun URL gambar eksternal.
+
+### 37. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
+- Memperbarui fungsi `createProject` agar mendeteksi tipe berkas gambar dan merangkumnya ke dalam objek `FormData` jika merupakan file lokal sebelum dikirim ke API.
+
+### 38. [src/context/NotificationContext.jsx](file:///c:/laragon/www/Rajut/src/context/NotificationContext.jsx) (Baru)
+- Membuat modul sistem peringatan/alert custom. 
+- Menyediakan fungsi `showToast(message, type, duration)` yang menampilkan toast notifikasi melayang di pojok kanan bawah layar. Mendukung tipe `'success'` (hijau), `'error'` (merah), dan `'loading'` (jingga dengan lingkaran pemuat berputar).
+
+### 39. [src/main.jsx](file:///c:/laragon/www/Rajut/src/main.jsx) (Diubah)
+- Membungkus komponen akar aplikasi `<App />` dengan `<NotificationProvider>` agar sistem notifikasi melayang dapat dipanggil dari mana saja di seluruh front-end.
+
+### 40. [src/App.jsx`, `Contact.jsx`, `Auth.jsx` & `Gallery.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
+- Mengganti semua penggunaan fungsi `alert()` bawaan browser dengan custom toast `showToast()` dari Notification Context untuk menyajikan feedback proses CRUD, login, logout, dan upload yang premium.
+
+### 41. [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) (Diubah)
+- **Unggahan Foto**: Menambahkan pilihan pengunggahan berkas foto lokal atau URL gambar pada panel tambah proyek Admin.
+- **Kartu Proyek**: Memasang penampil gambar utama di atas judul proyek pada kartu grid.
+- **Popup Modal Detail**: Menambahkan state `selectedProject`. Saat pengguna mengklik salah satu kartu proyek, modal popup overlay dengan backdrop-blur muncul di layar, menyajikan foto proyek beresolusi penuh, judul besar, dan deskripsi lengkap proyek secara detail.
+- **Notifikasi**: Menggunakan toast notifikasi loading dan sukses untuk proses pengerjaan pembuatan proyek baru.
+
+---
+---
+
+## Penyesuaian Deploy Gratis di Vercel (Update Terbaru)
+
+Menyederhanakan struktur agar backend Node/Express dapat otomatis dideploy sebagai Serverless Function di Vercel, sedangkan frontend Vite dideploy secara static.
+
+### 42. [vercel.json](file:///c:/laragon/www/Rajut/vercel.json) (Baru)
+- Berkas konfigurasi Vercel untuk melakukan URL rewrites, yaitu mengalihkan seluruh permintaan API `/api/*` ke fungsi serverless `/api/index.js`.
+
+### 43. [api/index.js](file:///c:/laragon/www/Rajut/api/index.js) (Baru)
+- Berkas penanganan serverless fungsi utama di Vercel. Mengimpor aplikasi Express terpusat dan mengekspornya secara default.
+
+### 44. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
+- **Tahan Crash File System**: Mendeteksi lingkungan Vercel (`process.env.VERCEL`) untuk mengalihkan folder penyimpanan unggahan sementara ke `/tmp/uploads` guna menghindari kegagalan baca-tulis media pada disk serverless.
+- **Kondisional Listen**: Membatasi fungsi `app.listen()` agar tidak dijalankan pada Vercel runtime (hanya lokal), serta mengekspor instansi `app`.
+
+### 45. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
+- Mengonfigurasi `API_BASE_URL` secara dinamis. Jika berjalan pada `localhost` pengembangan, rute mengarah ke server lokal port `3001`. Jika berjalan di production Vercel, rute menggunakan `/api` relatif terhadap domain deployment yang sama.
+

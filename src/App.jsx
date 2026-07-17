@@ -9,10 +9,12 @@ import Contact from './features/contact/Contact'
 import Auth from './features/auth/Auth'
 import useSwipe from './hooks/useSwipe'
 import { fetchGallery, fetchProjects } from './services/api'
+import { useNotification } from './context/NotificationContext'
 
 const SECTIONS = ['home', 'gallery', 'projects', 'about', 'contact', 'auth']
 
 export default function App() {
+  const { showToast } = useNotification()
   const [activeSection, setActiveSection] = useState(() => {
     const hash = window.location.hash.substring(1)
     return SECTIONS.includes(hash) ? hash : 'home'
@@ -42,6 +44,7 @@ export default function App() {
     } catch (err) {
       console.error('Error loading data from API:', err)
       setError('Gagal memuat data dari database. Pastikan server API dan MySQL Laragon aktif.')
+      showToast('Gagal memuat data dari database!', 'error')
     } finally {
       setLoading(false)
     }
@@ -125,7 +128,7 @@ export default function App() {
     localStorage.removeItem('user')
     setUser(null)
     changeSection('home')
-    alert('Anda telah berhasil keluar.')
+    showToast('Anda telah berhasil keluar.', 'success')
   }
 
   return (

@@ -51,9 +51,17 @@ async function initializeDatabase() {
         id INT AUTO_INCREMENT PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
         description TEXT NOT NULL,
+        image_url VARCHAR(255) NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `)
+
+    // Migration check: check if image_url column exists in projects
+    const [projectCols] = await pool.query("SHOW COLUMNS FROM projects LIKE 'image_url'")
+    if (projectCols.length === 0) {
+      await pool.query('ALTER TABLE projects ADD COLUMN image_url VARCHAR(255) NULL')
+      console.log('Migrated projects table: Added image_url column.')
+    }
 
     await pool.query(`
       CREATE TABLE IF NOT EXISTS contact_messages (
@@ -102,19 +110,22 @@ async function initializeDatabase() {
       const defaultProjects = [
         {
           title: 'Winter Collection 2024',
-          description: 'A collection of warm winter accessories including scarves, hats, and gloves.'
+          description: 'A collection of warm winter accessories including scarves, hats, and gloves.',
+          image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96'
         },
         {
           title: 'Custom Baby Blankets',
-          description: 'Personalized baby blankets with custom colors and patterns.'
+          description: 'Personalized baby blankets with custom colors and patterns.',
+          image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b'
         },
         {
           title: 'Home Decor Items',
-          description: 'Beautiful knitted pieces for home decoration and comfort.'
+          description: 'Beautiful knitted pieces for home decoration and comfort.',
+          image_url: 'https://images.unsplash.com/photo-1556906781-9a412961c28c'
         }
       ]
       for (const proj of defaultProjects) {
-        await pool.query('INSERT INTO projects (title, description) VALUES (?, ?)', [proj.title, proj.description])
+        await pool.query('INSERT INTO projects (title, description, image_url) VALUES (?, ?, ?)', [proj.title, proj.description, proj.image_url])
       }
       console.log('Default projects seeded.')
     }
@@ -122,21 +133,19 @@ async function initializeDatabase() {
     // 5. Seed default users
     const [usersRows] = await pool.query('SELECT COUNT(*) as count FROM users')
     if (usersRows[0].count === 0) {
-      // Create admin user
       const adminPasswordHash = await bcrypt.hash('admin', 10)
       await pool.query(`
         INSERT INTO users (name, address, phone, email, password, role)
         VALUES (?, ?, ?, ?, ?, ?)
       `, ['Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'admin@tokorajut.com', adminPasswordHash, 'admin'])
       
-      // Create default normal user
       const userPasswordHash = await bcrypt.hash('user', 10)
       await pool.query(`
         INSERT INTO users (name, address, phone, email, password, role)
         VALUES (?, ?, ?, ?, ?, ?)
       `, ['Budi Santoso', 'Jl. Kenari No. 12, Jakarta', '08987654321', 'user@tokorajut.com', userPasswordHash, 'user'])
       
-      console.log('Default user accounts seeded (admin@tokorajut.com / user@tokorajut.com).')
+      console.log('Default user accounts seeded.')
     }
 
   } catch (error) {

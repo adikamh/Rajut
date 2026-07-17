@@ -1,15 +1,16 @@
 import React, { useState } from 'react'
 import Button from '../../components/ui/Button'
 import { uploadGalleryImage } from '../../services/api'
+import { useNotification } from '../../context/NotificationContext'
 
 export default function Gallery({ isActive, galleryItems = [], onAddImage, loading, user }) {
+  const { showToast } = useNotification()
   const [lightboxImage, setLightboxImage] = useState(null)
   
   const [uploadMode, setUploadMode] = useState('file')
   const [imageUrlInput, setImageUrlInput] = useState('')
   const [selectedFile, setSelectedFile] = useState(null)
   const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState('')
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -20,20 +21,20 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, loadi
   const handleUploadSubmit = async (e) => {
     e.preventDefault()
     setUploading(true)
-    setMessage('')
+    showToast('Sedang mengunggah foto...', 'loading', 0)
 
     try {
       let result
       if (uploadMode === 'file') {
         if (!selectedFile) {
-          alert('Silakan pilih file gambar terlebih dahulu!')
+          showToast('Silakan pilih file gambar terlebih dahulu!', 'error')
           setUploading(false)
           return
         }
         result = await uploadGalleryImage(selectedFile, true)
       } else {
         if (!imageUrlInput.trim()) {
-          alert('Silakan masukkan URL gambar terlebih dahulu!')
+          showToast('Silakan masukkan URL gambar terlebih dahulu!', 'error')
           setUploading(false)
           return
         }
@@ -46,10 +47,10 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, loadi
       const fileInput = document.getElementById('galleryFileInput')
       if (fileInput) fileInput.value = ''
       
-      setMessage('Gambar berhasil ditambahkan ke galeri!')
+      showToast('Gambar berhasil ditambahkan ke galeri!', 'success')
     } catch (err) {
       console.error(err)
-      setMessage(`Gagal mengunggah: ${err.message}`)
+      showToast(`Gagal mengunggah gambar: ${err.message}`, 'error')
     } finally {
       setUploading(false)
     }
@@ -106,7 +107,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, loadi
               <button
                 type="button"
                 className="btn"
-                onClick={() => { setUploadMode('file'); setMessage(''); }}
+                onClick={() => { setUploadMode('file'); }}
                 style={{
                   padding: '8px 16px',
                   minHeight: 'auto',
@@ -122,7 +123,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, loadi
               <button
                 type="button"
                 className="btn"
-                onClick={() => { setUploadMode('url'); setMessage(''); }}
+                onClick={() => { setUploadMode('url'); }}
                 style={{
                   padding: '8px 16px',
                   minHeight: 'auto',
@@ -168,17 +169,6 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, loadi
                 {uploading ? 'Mengunggah...' : 'Tambahkan ke Galeri'}
               </Button>
             </form>
-
-            {message && (
-              <p style={{
-                textAlign: 'center',
-                marginTop: '1rem',
-                color: message.includes('berhasil') ? 'green' : 'red',
-                fontWeight: '500'
-              }}>
-                {message}
-              </p>
-            )}
           </div>
         )}
 
