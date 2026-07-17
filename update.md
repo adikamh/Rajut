@@ -256,3 +256,34 @@ Menyederhanakan struktur agar backend Node/Express dapat otomatis dideploy sebag
 ### 45. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
 - Mengonfigurasi `API_BASE_URL` secara dinamis. Jika berjalan pada `localhost` pengembangan, rute mengarah ke server lokal port `3001`. Jika berjalan di production Vercel, rute menggunakan `/api` relatif terhadap domain deployment yang sama.
 
+---
+---
+
+## Fitur Edit & Hapus (Full CRUD) Galeri & Proyek (Update Terbaru)
+
+Menambahkan kapabilitas bagi Administrator untuk memperbarui (Edit) dan menghapus (Delete) berkas foto galeri maupun proyek rajutan, lengkap dengan notifikasi Toast melayang yang interaktif.
+
+### 46. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
+- **Rute Galeri Baru**: Menambahkan `PUT /api/gallery/:id` (edit foto) dan `DELETE /api/gallery/:id` (hapus foto). Rute ini diverifikasi menggunakan middleware JWT admin.
+- **Rute Proyek Baru**: Menambahkan `PUT /api/projects/:id` (edit proyek) dan `DELETE /api/projects/:id` (hapus proyek). Rute ini diverifikasi menggunakan middleware JWT admin.
+
+### 47. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
+- Menambahkan metode konsumsi API: `updateGalleryImage`, `deleteGalleryImage`, `updateProject`, dan `deleteProject`.
+
+### 48. [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
+- Menambahkan callback state pengubah array data utama: `handleUpdateGalleryItem`, `handleDeleteGalleryItem`, `handleUpdateProjectItem`, dan `handleDeleteProjectItem`, lalu menyebarkannya sebagai properti komponen terkait.
+
+### 49. [src/features/gallery/Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) (Diubah)
+- **Overlay Hover Admin**: Merender tombol Edit (pencil) dan Hapus (silang) melayang di setiap foto ketika admin masuk.
+- **Modul Edit Foto**: Memunculkan modal dialog untuk memperbarui sumber foto (file/URL).
+- **Proses Alert**: Menampilkan Toast loading, sukses, dan error selama memproses operasi edit dan hapus.
+
+### 50. [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) (Diubah)
+- **Kontrol Kartu Proyek**: Memasang tombol edit dan hapus pada masing-masing kartu proyek untuk admin.
+- **Modul Edit Detail Proyek**: Memunculkan form modal edit terpadu (Judul, Foto, Deskripsi) dengan pengisian otomatis data yang sudah ada sebelumnya.
+- **Proses Alert**: Menampilkan Toast loading, sukses, dan error selama memproses operasi edit dan hapus.
+
+### 51. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
+- Menambahkan aturan CSS `.gallery-item-actions` dan `.gallery-action-btn` untuk mendukung tampilan tombol aksi melayang di atas foto galeri.
+
+

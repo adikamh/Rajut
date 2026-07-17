@@ -1,4 +1,4 @@
-import mysql from 'mysql2/promise'
+import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -9,104 +9,49 @@ const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
+const supabaseUrl = process.env.SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_KEY
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing SUPABASE_URL or SUPABASE_KEY in .env file')
+  process.exit(1)
 }
 
-const dbName = process.env.DB_NAME || 'rajut'
+const supabase = createClient(supabaseUrl, supabaseKey)
+console.log('Supabase client initialized.')
 
-let pool
-
+// Seeding checks
 async function initializeDatabase() {
   try {
-    // 1. Create connection without DB name to run CREATE DATABASE
-    const connection = await mysql.createConnection(dbConfig)
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``)
-    await connection.end()
-
-    // 2. Create connection pool with DB name
-    pool = mysql.createPool({
-      ...dbConfig,
-      database: dbName,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    })
-
-    console.log(`Connected to MySQL database "${dbName}"`)
-
-    // 3. Create tables if they do not exist
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS gallery (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        image_url VARCHAR(255) NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        description TEXT NOT NULL,
-        image_url VARCHAR(255) NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    // Migration check: check if image_url column exists in projects
-    const [projectCols] = await pool.query("SHOW COLUMNS FROM projects LIKE 'image_url'")
-    if (projectCols.length === 0) {
-      await pool.query('ALTER TABLE projects ADD COLUMN image_url VARCHAR(255) NULL')
-      console.log('Migrated projects table: Added image_url column.')
-    }
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS contact_messages (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        message TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        address TEXT NOT NULL,
-        phone VARCHAR(255) NOT NULL,
-        email VARCHAR(255) UNIQUE NOT NULL,
-        password VARCHAR(255) NOT NULL,
-        role VARCHAR(50) DEFAULT 'user',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
-
-    console.log('Database tables verified/created successfully.')
-
-    // 4. Seed initial data if tables are empty
-    const [galleryRows] = await pool.query('SELECT COUNT(*) as count FROM gallery')
-    if (galleryRows[0].count === 0) {
+    // 1. Seed Gallery
+    const { count: galleryCount, error: galleryError } = await supabase
+      .from('gallery')
+      .select('*', { count: 'exact', head: true })
+    
+    if (galleryError) {
+      console.warn('Gallery table check failed. Ensure you created the tables in Supabase SQL Editor. Error:', galleryError.message)
+    } else if (galleryCount === 0) {
       const defaultGallery = [
-        'https://images.unsplash.com/photo-1578662996442-48f60103fc96',
-        'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b',
-        'https://images.unsplash.com/photo-1591047139829-d91aecb6caea',
-        'https://images.unsplash.com/photo-1601762603339-fd61e28b698a',
-        'https://images.unsplash.com/photo-1556906781-9a412961c28c',
-        'https://images.unsplash.com/photo-1578662996442-48f60103fc96'
+        { image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' },
+        { image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b' },
+        { image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea' },
+        { image_url: 'https://images.unsplash.com/photo-1601762603339-fd61e28b698a' },
+        { image_url: 'https://images.unsplash.com/photo-1556906781-9a412961c28c' },
+        { image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' }
       ]
-      for (const img of defaultGallery) {
-        await pool.query('INSERT INTO gallery (image_url) VALUES (?)', [img])
-      }
-      console.log('Default gallery images seeded.')
+      const { error: seedError } = await supabase.from('gallery').insert(defaultGallery)
+      if (seedError) console.error('Failed to seed gallery:', seedError.message)
+      else console.log('Default gallery seeded on Supabase.')
     }
 
-    const [projectsRows] = await pool.query('SELECT COUNT(*) as count FROM projects')
-    if (projectsRows[0].count === 0) {
+    // 2. Seed Projects
+    const { count: projectCount, error: projectError } = await supabase
+      .from('projects')
+      .select('*', { count: 'exact', head: true })
+
+    if (projectError) {
+      console.warn('Projects table check failed. Error:', projectError.message)
+    } else if (projectCount === 0) {
       const defaultProjects = [
         {
           title: 'Winter Collection 2024',
@@ -124,40 +69,51 @@ async function initializeDatabase() {
           image_url: 'https://images.unsplash.com/photo-1556906781-9a412961c28c'
         }
       ]
-      for (const proj of defaultProjects) {
-        await pool.query('INSERT INTO projects (title, description, image_url) VALUES (?, ?, ?)', [proj.title, proj.description, proj.image_url])
-      }
-      console.log('Default projects seeded.')
+      const { error: seedError } = await supabase.from('projects').insert(defaultProjects)
+      if (seedError) console.error('Failed to seed projects:', seedError.message)
+      else console.log('Default projects seeded on Supabase.')
     }
 
-    // 5. Seed default users
-    const [usersRows] = await pool.query('SELECT COUNT(*) as count FROM users')
-    if (usersRows[0].count === 0) {
+    // 3. Seed Users
+    const { count: userCount, error: userError } = await supabase
+      .from('users')
+      .select('*', { count: 'exact', head: true })
+
+    if (userError) {
+      console.warn('Users table check failed. Error:', userError.message)
+    } else if (userCount === 0) {
       const adminPasswordHash = await bcrypt.hash('admin', 10)
-      await pool.query(`
-        INSERT INTO users (name, address, phone, email, password, role)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, ['Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'admin@tokorajut.com', adminPasswordHash, 'admin'])
-      
       const userPasswordHash = await bcrypt.hash('user', 10)
-      await pool.query(`
-        INSERT INTO users (name, address, phone, email, password, role)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `, ['Budi Santoso', 'Jl. Kenari No. 12, Jakarta', '08987654321', 'user@tokorajut.com', userPasswordHash, 'user'])
-      
-      console.log('Default user accounts seeded.')
+
+      const defaultUsers = [
+        {
+          name: 'Administrator',
+          address: 'Kantor Pusat Toko Rajut',
+          phone: '08123456789',
+          email: 'admin@tokorajut.com',
+          password: adminPasswordHash,
+          role: 'admin'
+        },
+        {
+          name: 'Budi Santoso',
+          address: 'Jl. Kenari No. 12, Jakarta',
+          phone: '08987654321',
+          email: 'user@tokorajut.com',
+          password: userPasswordHash,
+          role: 'user'
+        }
+      ]
+      const { error: seedError } = await supabase.from('users').insert(defaultUsers)
+      if (seedError) console.error('Failed to seed users:', seedError.message)
+      else console.log('Default user accounts seeded on Supabase.')
     }
 
-  } catch (error) {
-    console.error('Failed to initialize database:', error)
-    process.exit(1)
+  } catch (err) {
+    console.error('Supabase initialization check failed:', err.message)
   }
 }
 
-// Initialize database
-await initializeDatabase()
+// Initialize checks
+initializeDatabase()
 
-export default {
-  query: (sql, params) => pool.query(sql, params),
-  pool
-}
+export default supabase
