@@ -286,4 +286,37 @@ Menambahkan kapabilitas bagi Administrator untuk memperbarui (Edit) dan menghapu
 ### 51. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
 - Menambahkan aturan CSS `.gallery-item-actions` dan `.gallery-action-btn` untuk mendukung tampilan tombol aksi melayang di atas foto galeri.
 
+---
+---
+
+## Integrasi Database Cloud Supabase PostgreSQL & Penyempurnaan Konfigurasi Environment (Update Terbaru)
+
+Mengalihkan basis data dari MySQL lokal (Laragon) ke cloud database Supabase PostgreSQL, membuat skema tabel PostgreSQL, mengadaptasi backend, serta menyesuaikan penanganan berkas environment.
+
+### 52. [package.json](file:///c:/laragon/www/Rajut/package.json) (Diubah)
+- Menambahkan dependensi `@supabase/supabase-js` (`^2.110.7`) untuk integrasi dan manipulasi data di database Supabase.
+
+### 53. [supabase_setup.sql](file:///c:/laragon/www/Rajut/supabase_setup.sql) (Baru)
+- Berkas penampung skrip SQL untuk menginisialisasi skema tabel (`gallery`, `projects`, `contact_messages`, `users`) di Supabase SQL Editor.
+
+### 54. [server/db.js](file:///c:/laragon/www/Rajut/server/db.js) (Diubah)
+- Menghapus pustaka koneksi MySQL (`mysql2`).
+- Menghubungkan server backend ke database Supabase menggunakan `createClient` dari `@supabase/supabase-js`.
+- Memperbarui fungsi `initializeDatabase()` untuk melakukan pengecekan dan pengisian data awal (seeding) secara otomatis di tabel-tabel Supabase yang kosong.
+- Memperbaiki bug pembacaan environment variable dengan mengubah `SUPABASE_URL` dan `SUPABASE_KEY` menjadi `VITE_SUPABASE_URL` serta mendukung baik `VITE_SUPABASE_ANON_KEY` maupun `VITE_SUPABASE_PUBLISHABLE_KEY` agar terhindar dari nilai kosong (`undefined`).
+
+### 55. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
+- Mengadaptasi semua handler API route (`/api/auth/register`, `/api/auth/login`, `/api/gallery`, `/api/projects`, dan `/api/contact`) agar menggunakan query builder Supabase client (`db.from()`), menggantikan raw SQL query.
+
+### 56. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
+- Menghapus parameter database MySQL lama (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
+- Menambahkan konfigurasi database Supabase yaitu `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, dan `VITE_SUPABASE_PUBLISHABLE_KEY`.
+
+### 57. [.gitignore](file:///c:/laragon/www/Rajut/.gitignore) (Diubah)
+- Menambahkan aturan baru untuk mengecualikan berkas `.env` dari pelacakan Git agar kredensial API Key Supabase tidak terunggah secara tidak sengaja ke repositori publik.
+
+### 58. [src/utils/supabase.js](file:///c:/laragon/www/Rajut/src/utils/supabase.js) (Baru)
+- Berkas helper inisialisasi client Supabase di sisi frontend (React) menggunakan `import.meta.env` untuk mempermudah integrasi atau pemanggilan data Supabase secara langsung di client jika diinginkan.
+
+
 
