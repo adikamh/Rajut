@@ -123,10 +123,8 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
     }
   }
 
-  const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&fit=crop'
-
   const getFullImgUrl = (url) => {
-    if (!url) return FALLBACK_IMAGE
+    if (!url) return ''
 
     // Auto-convert any Google Drive URL into proxy stream URL
     const driveMatch = url.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
@@ -308,7 +306,6 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                   alt={`Karya Rajut ${index + 1}`}
                   onError={(e) => {
                     e.target.onerror = null
-                    e.target.src = FALLBACK_IMAGE
                   }}
                 />
                 

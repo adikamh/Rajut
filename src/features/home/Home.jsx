@@ -14,12 +14,7 @@ export default function Home({ isActive, onSectionChange, projects = [], loading
       return url.startsWith('/') ? url : `/${url}`
 
     }
-    const staticPics = [
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&fit=crop',
-      'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&fit=crop',
-      'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=600&fit=crop'
-    ]
-    return staticPics[index % staticPics.length]
+    return ''
   }
 
   const featuredWorks = projects.map((proj, index) => ({
@@ -142,7 +137,6 @@ export default function Home({ isActive, onSectionChange, projects = [], loading
                     style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                     onError={(e) => {
                       e.target.onerror = null
-                      e.target.src = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&fit=crop'
                     }}
                   />
                   <span className="gallery-badge" style={{ top: '12px', left: '12px' }}>⭐ Featured</span>
