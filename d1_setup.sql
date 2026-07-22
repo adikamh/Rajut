@@ -60,5 +60,5 @@ INSERT OR IGNORE INTO projects (id, title, description, image_url) VALUES
 -- Admin: admin@tokorajut.com / admin
 -- User: user@tokorajut.com / user
 INSERT OR IGNORE INTO users (name, address, phone, email, password, role) VALUES
-  ('Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'admin@tokorajut.com', '$2a$10$W1eH.f3vGvB7S.H6tL7gceZ0r1q5L1d3c0k3H4h.4n2b1a0c0d0e0', 'admin'),
+  ('Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'haikaladika8@gmail.com', '$2b$10$FbEI9WRMPq3a.9fgon5HeOPAup/y3TtCXJqIk7022XrqVV19qZ43i', 'admin'),
   ('Budi Santoso', 'Jl. Kenari No. 12, Jakarta', '08987654321', 'user@tokorajut.com', '$2a$10$W1eH.f3vGvB7S.H6tL7gceZ0r1q5L1d3c0k3H4h.4n2b1a0c0d0e0', 'user');

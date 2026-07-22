@@ -399,6 +399,22 @@ Menghapus file legacy Supabase yang tidak lagi digunakan dan mengonfigurasi `.gi
   - Folder media unggahan lokal: `public/uploads/*` (kecuali `.gitkeep`)
   - Sub-direktori Cloudflare Worker: `my-backend-api/node_modules/`, `my-backend-api/.wrangler/`, dan `my-backend-api/.env*`
 
+---
+---
+
+## Pembaruan Kredensial Admin D1 & Fitur Tampilkan Password di Halaman Login (Update Terbaru)
+
+Mengubah email dan password Administrator pada Cloudflare D1 Database menjadi `haikaladika8@gmail.com` dan `Haikal552005`, menghapus tombol pengisian otomatis bawaan (*Quick Fill Admin*), serta menambahkan tombol sakelar tampilkan/sembunyikan password (*Show Password toggle*).
+
+### 72. Cloudflare D1 Database & [d1_setup.sql](file:///c:/laragon/www/Rajut/d1_setup.sql) (Diubah)
+- Memperbarui email Administrator di tabel `users` Cloudflare D1 menjadi `haikaladika8@gmail.com` dan password terenkripsi bcrypt untuk `Haikal552005`.
+- Meng-update file inisialisasi [d1_setup.sql](file:///c:/laragon/www/Rajut/d1_setup.sql) dan fallback memori [server/db.js](file:///c:/laragon/www/Rajut/server/db.js).
+
+### 73. [src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx) (Diubah)
+- Menghapus blok tampilan dan fungsi handler *⚡ Quick Fill Admin: admin@tokorajut.com / Isi Otomatis*.
+- Menambahkan tombol ikon mata (*Show/Hide Password*) pada bidang masukan password di form Login dan Register untuk memudahkan pengguna melihat kata sandi yang diketik.
+
+
 
 
 
