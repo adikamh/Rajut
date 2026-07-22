@@ -19,9 +19,12 @@ export default function Footer({ onSectionChange }) {
       <div className="container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3>Toko Rajut</h3>
-            <p>Handmade knitting artistry with love and care.</p>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🧶</span> Toko Rajut
+            </h3>
+            <p>Seni rajut tangan eksklusif buatan Indonesia yang dibuat dengan benang berkualitas dan penuh kasih sayang.</p>
           </div>
+
           <div className="footer-section">
             <h3>Quick Links</h3>
             <ul>

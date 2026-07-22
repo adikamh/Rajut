@@ -1,119 +1,309 @@
-import { createClient } from '@supabase/supabase-js'
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import bcrypt from 'bcryptjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
-const supabaseUrl = process.env.VITE_SUPABASE_URL
-const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY
+const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID
+const cfD1DatabaseId = process.env.CLOUDFLARE_D1_DATABASE_ID
+const cfApiToken = process.env.CLOUDFLARE_API_TOKEN
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('Missing VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, or VITE_SUPABASE_PUBLISHABLE_KEY in environment variables')
-  process.exit(1)
+// In-Memory Database Fallback for Local Development without Cloudflare D1 API Token
+const memoryDb = {
+  users: [
+    {
+      id: 1,
+      name: 'Administrator',
+      address: 'Kantor Pusat Toko Rajut',
+      phone: '08123456789',
+      email: 'admin@tokorajut.com',
+      password: '$2b$10$wECi3Wg5QHICL/Ot76MSi.BCzUrIlqhjUXhl4GzPAt36mSmQ0ZVYO', // password: admin
+      role: 'admin',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      name: 'Budi Santoso',
+      address: 'Jl. Kenari No. 12, Jakarta',
+      phone: '08987654321',
+      email: 'user@tokorajut.com',
+      password: '$2b$10$X4TqekfctUWYr8QDqc4kse8iLFX6uh2thNTD7Z8hXAq5afwfrXIHy', // password: user
+      role: 'user',
+      created_at: new Date().toISOString()
+    }
+  ],
+  gallery: [],
+
+  projects: [],
+
+  contact_messages: []
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey)
-console.log('Supabase client initialized.')
+// Cloudflare D1 REST API Client
+export async function queryD1(sql, params = []) {
+  if (!cfAccountId || !cfD1DatabaseId || !cfApiToken) {
+    return { success: false, results: [] }
+  }
 
-// Seeding checks
-async function initializeDatabase() {
   try {
-    // 1. Seed Gallery
-    const { count: galleryCount, error: galleryError } = await supabase
-      .from('gallery')
-      .select('*', { count: 'exact', head: true })
-    
-    if (galleryError) {
-      console.warn('Gallery table check failed. Ensure you created the tables in Supabase SQL Editor. Error:', galleryError.message)
-    } else if (galleryCount === 0) {
-      const defaultGallery = [
-        { image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' },
-        { image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b' },
-        { image_url: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea' },
-        { image_url: 'https://images.unsplash.com/photo-1601762603339-fd61e28b698a' },
-        { image_url: 'https://images.unsplash.com/photo-1556906781-9a412961c28c' },
-        { image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' }
-      ]
-      const { error: seedError } = await supabase.from('gallery').insert(defaultGallery)
-      if (seedError) console.error('Failed to seed gallery:', seedError.message)
-      else console.log('Default gallery seeded on Supabase.')
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/d1/database/${cfD1DatabaseId}/query`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${cfApiToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sql, params })
+      }
+    )
+
+    const json = await response.json()
+    if (!json.success || !json.result || json.result.length === 0) {
+      return { success: false, results: [] }
     }
 
-    // 2. Seed Projects
-    const { count: projectCount, error: projectError } = await supabase
-      .from('projects')
-      .select('*', { count: 'exact', head: true })
-
-    if (projectError) {
-      console.warn('Projects table check failed. Error:', projectError.message)
-    } else if (projectCount === 0) {
-      const defaultProjects = [
-        {
-          title: 'Winter Collection 2024',
-          description: 'A collection of warm winter accessories including scarves, hats, and gloves.',
-          image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96'
-        },
-        {
-          title: 'Custom Baby Blankets',
-          description: 'Personalized baby blankets with custom colors and patterns.',
-          image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b'
-        },
-        {
-          title: 'Home Decor Items',
-          description: 'Beautiful knitted pieces for home decoration and comfort.',
-          image_url: 'https://images.unsplash.com/photo-1556906781-9a412961c28c'
-        }
-      ]
-      const { error: seedError } = await supabase.from('projects').insert(defaultProjects)
-      if (seedError) console.error('Failed to seed projects:', seedError.message)
-      else console.log('Default projects seeded on Supabase.')
-    }
-
-    // 3. Seed Users
-    const { count: userCount, error: userError } = await supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-
-    if (userError) {
-      console.warn('Users table check failed. Error:', userError.message)
-    } else if (userCount === 0) {
-      const adminPasswordHash = await bcrypt.hash('admin', 10)
-      const userPasswordHash = await bcrypt.hash('user', 10)
-
-      const defaultUsers = [
-        {
-          name: 'Administrator',
-          address: 'Kantor Pusat Toko Rajut',
-          phone: '08123456789',
-          email: 'admin@tokorajut.com',
-          password: adminPasswordHash,
-          role: 'admin'
-        },
-        {
-          name: 'Budi Santoso',
-          address: 'Jl. Kenari No. 12, Jakarta',
-          phone: '08987654321',
-          email: 'user@tokorajut.com',
-          password: userPasswordHash,
-          role: 'user'
-        }
-      ]
-      const { error: seedError } = await supabase.from('users').insert(defaultUsers)
-      if (seedError) console.error('Failed to seed users:', seedError.message)
-      else console.log('Default user accounts seeded on Supabase.')
-    }
-
+    return { success: true, results: json.result[0].results || [] }
   } catch (err) {
-    console.error('Supabase initialization check failed:', err.message)
+    console.error('Error querying Cloudflare D1 API:', err.message)
+    return { success: false, results: [] }
   }
 }
 
-// Initialize checks
-initializeDatabase()
+// Supabase-compatible D1 QueryBuilder with in-memory fallback
+class D1TableQuery {
+  constructor(table) {
+    this.table = table
+    this.operation = 'select'
+    this.selectColumns = '*'
+    this.selectOptions = {}
+    this.insertItems = null
+    this.updateData = null
+    this.whereConditions = []
+    this.orderBy = null
+    this.limitVal = null
+  }
 
-export default supabase
+  eq(column, value) {
+    this.whereConditions.push({ col: column, val: value })
+    return this
+  }
+
+  order(column, { ascending = true } = {}) {
+    this.orderBy = `${column} ${ascending ? 'ASC' : 'DESC'}`
+    return this
+  }
+
+  limit(count) {
+    this.limitVal = count
+    return this
+  }
+
+  select(columns = '*', options = {}) {
+    if (this.operation !== 'insert' && this.operation !== 'update') {
+      this.operation = 'select'
+    }
+    this.selectColumns = columns
+    this.selectOptions = options
+    return this
+  }
+
+
+  insert(items) {
+    this.operation = 'insert'
+    this.insertItems = items
+    return this
+  }
+
+  update(updateData) {
+    this.operation = 'update'
+    this.updateData = updateData
+    return this
+  }
+
+  delete() {
+    this.operation = 'delete'
+    return this
+  }
+
+  async execute() {
+    // If Cloudflare D1 environment variables are missing, use in-memory store
+    if (!cfAccountId || !cfD1DatabaseId || !cfApiToken) {
+      const tableData = memoryDb[this.table] || []
+
+      if (this.operation === 'select') {
+        let results = [...tableData]
+        for (const cond of this.whereConditions) {
+          results = results.filter(r => String(r[cond.col]).toLowerCase() === String(cond.val).toLowerCase())
+        }
+        if (this.orderBy) {
+          const [col, dir] = this.orderBy.split(' ')
+          results.sort((a, b) => dir === 'DESC' ? (b[col] > a[col] ? 1 : -1) : (a[col] > b[col] ? 1 : -1))
+        }
+        if (this.limitVal) {
+          results = results.slice(0, this.limitVal)
+        }
+        if (this.selectOptions.count === 'exact') {
+          return { data: results, count: results.length, error: null }
+        }
+        return { data: results, error: null }
+      }
+
+      if (this.operation === 'insert') {
+        const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
+        const insertedResults = []
+        for (const row of rows) {
+          const currentItems = memoryDb[this.table] || []
+          const maxId = currentItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
+          const newRow = {
+            created_at: new Date().toISOString(),
+            ...row,
+            id: maxId + 1
+          }
+
+          if (!memoryDb[this.table]) memoryDb[this.table] = []
+          memoryDb[this.table].unshift(newRow)
+          insertedResults.push(newRow)
+        }
+        return { data: insertedResults, error: null }
+      }
+
+
+      if (this.operation === 'update') {
+        let updated = []
+        const dataArr = memoryDb[this.table] || []
+        for (let i = 0; i < dataArr.length; i++) {
+          let match = true
+          for (const cond of this.whereConditions) {
+            if (String(dataArr[i][cond.col]) !== String(cond.val)) {
+              match = false
+              break
+            }
+          }
+          if (match) {
+            dataArr[i] = { ...dataArr[i], ...this.updateData }
+            updated.push(dataArr[i])
+          }
+        }
+        return { data: updated, error: null }
+      }
+
+      if (this.operation === 'delete') {
+        if (memoryDb[this.table]) {
+          memoryDb[this.table] = memoryDb[this.table].filter(r => {
+            for (const cond of this.whereConditions) {
+              if (String(r[cond.col]) === String(cond.val)) return false
+            }
+            return true
+          })
+        }
+        return { error: null }
+      }
+    }
+
+    // Otherwise query Cloudflare D1 REST API
+    if (this.operation === 'select') {
+      let sql = `SELECT ${this.selectColumns === '*' ? '*' : this.selectColumns} FROM ${this.table}`
+      const params = []
+
+      if (this.whereConditions.length > 0) {
+        const clauses = this.whereConditions.map(c => {
+          params.push(c.val)
+          return `${c.col} = ?`
+        })
+        sql += ` WHERE ${clauses.join(' AND ')}`
+      }
+
+      if (this.orderBy) {
+        sql += ` ORDER BY ${this.orderBy}`
+      }
+
+      if (this.limitVal) {
+        sql += ` LIMIT ${this.limitVal}`
+      }
+
+      const { results } = await queryD1(sql, params)
+
+      if (this.selectOptions.count === 'exact') {
+        return { data: results, count: results.length, error: null }
+      }
+      return { data: results, error: null }
+    }
+
+    if (this.operation === 'insert') {
+      const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
+      const insertedResults = []
+
+      for (const row of rows) {
+        const keys = Object.keys(row)
+        const values = Object.values(row)
+        const placeholders = keys.map(() => '?').join(', ')
+        const sql = `INSERT INTO ${this.table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`
+
+        const { results } = await queryD1(sql, values)
+        if (results && results.length > 0) {
+          insertedResults.push(results[0])
+        } else {
+          insertedResults.push(row)
+        }
+      }
+
+      return { data: insertedResults, error: null }
+    }
+
+    if (this.operation === 'update') {
+      const keys = Object.keys(this.updateData)
+      const values = Object.values(this.updateData)
+      const setClause = keys.map(k => `${k} = ?`).join(', ')
+
+      let sql = `UPDATE ${this.table} SET ${setClause}`
+      const params = [...values]
+
+      if (this.whereConditions.length > 0) {
+        const clauses = this.whereConditions.map(c => {
+          params.push(c.val)
+          return `${c.col} = ?`
+        })
+        sql += ` WHERE ${clauses.join(' AND ')}`
+      }
+
+      sql += ` RETURNING *`
+
+      const { results } = await queryD1(sql, params)
+      return { data: results, error: null }
+    }
+
+    if (this.operation === 'delete') {
+      let sql = `DELETE FROM ${this.table}`
+      const params = []
+
+      if (this.whereConditions.length > 0) {
+        const clauses = this.whereConditions.map(c => {
+          params.push(c.val)
+          return `${c.col} = ?`
+        })
+        sql += ` WHERE ${clauses.join(' AND ')}`
+      }
+
+      await queryD1(sql, params)
+      return { error: null }
+    }
+  }
+
+  then(onFulfilled, onRejected) {
+    return this.execute().then(onFulfilled, onRejected)
+  }
+}
+
+const db = {
+  from(tableName) {
+    return new D1TableQuery(tableName)
+  }
+}
+
+console.log('Cloudflare D1 DB client / memory store initialized.')
+
+export default db

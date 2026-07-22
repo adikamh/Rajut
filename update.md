@@ -318,5 +318,71 @@ Mengalihkan basis data dari MySQL lokal (Laragon) ke cloud database Supabase Pos
 ### 58. [src/utils/supabase.js](file:///c:/laragon/www/Rajut/src/utils/supabase.js) (Baru)
 - Berkas helper inisialisasi client Supabase di sisi frontend (React) menggunakan `import.meta.env` untuk mempermudah integrasi atau pemanggilan data Supabase secara langsung di client jika diinginkan.
 
+---
+---
+
+## Persiapan Deploy Vercel, Responsivitas Mobile & Keamanan Data (Update Terbaru)
+
+Menyesuaikan kode program agar aman dari kebocoran data saat dipublish, memperbaiki bugs crash startup di platform Vercel, serta merapikan struktur responsivitas layout grid pada tampilan seluler (mobile).
+
+### 59. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
+- Menambahkan pemeriksaan `fs.existsSync` pada file kredensial Google Drive Service Account sebelum memanggil `new google.auth.GoogleAuth`. Hal ini mencegah server Express crash saat di-boot sebagai serverless function di Vercel (karena folder `bot/` sengaja diabaikan di `.gitignore` dan tidak ikut diunggah ke Vercel).
+
+### 60. [src/features/about/About.jsx](file:///c:/laragon/www/Rajut/src/features/about/About.jsx) (Diubah)
+- Menghapus atribut inline style `gridTemplateColumns: "1fr 1fr"` pada kontainer utama seksi *About* agar layout dapat dikontrol secara responsif dari CSS global.
+
+### 61. [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx) (Diubah)
+- Menghapus atribut inline style `gridTemplateColumns: "1fr 1fr"` pada kontainer utama seksi *Contact* agar layout form dan info detail kontak dapat menyesuaikan lebar layar secara dinamis dari file CSS global.
+
+### 62. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
+- Mengonfigurasi struktur layout seksi *About* (`.about-content`) dan seksi *Contact* (`.contact-content`) menggunakan pendekatan *mobile-first* (1 kolom secara default untuk perangkat seluler) serta membatasi susunan 2 kolom sejajar hanya pada perangkat desktop (`@media (min-width: 769px)`). Hal ini merapikan tampilan layout agar tidak terkompresi secara tidak proporsional saat dibuka via mobile.
+
+### 63. [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) (Diubah)
+- Memperbarui fungsi helper `generateToken` dan `getAuthUser` agar dapat menerima argumen kunci rahasia JWT dari environment variabel Cloudflare Workers (`env.JWT_SECRET`). Hal ini meningkatkan keamanan (mencegah kebocoran data kunci) dengan meminimalkan penggunaan kunci rahasia default yang di-hardcode jika proyek diunggah ke repositori publik.
+
+---
+---
+
+## Pembaruan Alamat Email Tujuan Kontak Us ke haikaladika8@gmail.com (Update Terbaru)
+
+Mengubah alamat email penerima notifikasi pesan kontak masuk dan alamat email resmi di halaman front-end menjadi `haikaladika8@gmail.com`, serta menambahkan fitur pengisian otomatis (auto-fill) nama & email pengguna yang sedang login di form kontak.
+
+### 64. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
+- Memperbarui variabel lingkungan `SMTP_TO` menjadi `"haikaladika8@gmail.com"` agar seluruh notifikasi pesan baru yang dikirim pengunjung melalui form kontak langsung diteruskan ke alamat email tersebut.
+
+### 65. [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) (Diubah)
+- Memperbarui fallback alamat email penerima pesan dari `info@tokorajut.com` menjadi `haikaladika8@gmail.com` dan mempercantik format HTML template email notifikasi pesan kontak masuk.
+
+### 66. [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
+- Membagikan sesi pengguna aktif (`user`) sebagai prop ke komponen `<Contact user={user} />`.
+
+### 67. [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx) (Diubah)
+- Menampilkan alamat email resmi `haikaladika8@gmail.com` dengan tautan interaktif `mailto:haikaladika8@gmail.com` pada kartu informasi kontak.
+- Menambahkan `useEffect` untuk mengisi secara otomatis (auto-fill) nama dan email pengirim pada form input jika pengguna telah masuk sesi (login).
+
+---
+---
+
+## Konfigurasi Gmail SMTP Real (App Password) & Penerima haikaladika272@gmail.com (Update Paling Baru)
+
+Mengonfigurasi server pengiriman email asli menggunakan Gmail SMTP dengan kredensial App Password dari `haikaladika8@gmail.com` agar seluruh isian formulir kontak yang dikirim pengunjung langsung terkirim secara *real-time* ke email `haikaladika272@gmail.com`.
+
+### 68. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
+- Mengonfigurasi kredensial SMTP Gmail:
+  - `SMTP_HOST="smtp.gmail.com"`
+  - `SMTP_PORT=465` (SSL Secure)
+  - `SMTP_USER="haikaladika8@gmail.com"`
+  - `SMTP_PASS="kwzwhnllebhxvdlj"` (Gmail App Password)
+  - `SMTP_FROM="haikaladika8@gmail.com"`
+  - `SMTP_TO="haikaladika272@gmail.com"` (Email tujuan pengiriman notifikasi pesan masuk)
+
+### 69. [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) (Diubah)
+- Memperbarui transporter Nodemailer untuk mendukung koneksi SSL `smtp.gmail.com:465`.
+- Mengonfigurasi header `replyTo` ke alamat email pengirim (pengunjung) agar admin dapat langsung membalas (*reply*) email yang masuk di `haikaladika272@gmail.com` secara instan ke pengunjung.
+- Menguji pengiriman email secara sungguhan (*live test*) dan berhasil terkirim dengan ID pesan Gmail SMTP.
+
+
+
+
 
 

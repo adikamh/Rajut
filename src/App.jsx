@@ -50,9 +50,38 @@ export default function App() {
     }
   }
 
+  const silentReloadData = async () => {
+    try {
+      const [gal, proj] = await Promise.all([fetchGallery(), fetchProjects()])
+      setGallery(gal)
+      setProjects(proj)
+      setError(null)
+    } catch (err) {
+      console.error('Silent background sync error:', err)
+    }
+  }
+
   useEffect(() => {
     loadData()
+
+    // Automatic real-time refresh every 5 seconds
+    const syncInterval = setInterval(() => {
+      silentReloadData()
+    }, 5000)
+
+    // Immediate refresh on tab focus / re-entry
+    const handleFocus = () => {
+      silentReloadData()
+    }
+
+    window.addEventListener('focus', handleFocus)
+
+    return () => {
+      clearInterval(syncInterval)
+      window.removeEventListener('focus', handleFocus)
+    }
   }, [])
+
 
   const changeSection = (sectionId) => {
     if (SECTIONS.includes(sectionId)) {
@@ -113,27 +142,34 @@ export default function App() {
 
   const handleAddGalleryItem = (newItem) => {
     setGallery((prev) => [newItem, ...prev])
+    silentReloadData()
   }
 
   const handleUpdateGalleryItem = (updatedItem) => {
     setGallery((prev) => prev.map((item) => item.id === updatedItem.id ? updatedItem : item))
+    silentReloadData()
   }
 
   const handleDeleteGalleryItem = (id) => {
     setGallery((prev) => prev.filter((item) => item.id !== id))
+    silentReloadData()
   }
 
   const handleAddProjectItem = (newItem) => {
     setProjects((prev) => [newItem, ...prev])
+    silentReloadData()
   }
 
   const handleUpdateProjectItem = (updatedItem) => {
     setProjects((prev) => prev.map((proj) => proj.id === updatedItem.id ? updatedItem : proj))
+    silentReloadData()
   }
 
   const handleDeleteProjectItem = (id) => {
     setProjects((prev) => prev.filter((proj) => proj.id !== id))
+    silentReloadData()
   }
+
 
   const handleLoginSuccess = (loggedInUser) => {
     setUser(loggedInUser)
@@ -197,7 +233,7 @@ export default function App() {
           user={user}
         />
         <About isActive={activeSection === 'about'} />
-        <Contact isActive={activeSection === 'contact'} />
+        <Contact isActive={activeSection === 'contact'} user={user} />
         <Auth
           isActive={activeSection === 'auth'}
           onLoginSuccess={handleLoginSuccess}
