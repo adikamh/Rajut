@@ -44,3 +44,24 @@ bot/
 *.json.secret
 bot/*.json
 
+# AI Agent Skills & Customization
+.agents/
+skills-lock.json
+
+# Documentation & Migration Files (Excluded from GitHub & Vercel)
+CLOUDFLARE_MIGRATION.md
+
+# One-off Test Files & Standalone Scripts
+test_real_img.png
+server.js
+
+# Local Uploads Directory
+public/uploads/*
+!public/uploads/.gitkeep
+
+# Cloudflare Worker Sub-projects
+my-backend-api/node_modules/
+my-backend-api/.wrangler/
+my-backend-api/.env*
+
+

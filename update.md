@@ -381,6 +381,25 @@ Mengonfigurasi server pengiriman email asli menggunakan Gmail SMTP dengan kreden
 - Mengonfigurasi header `replyTo` ke alamat email pengirim (pengunjung) agar admin dapat langsung membalas (*reply*) email yang masuk di `haikaladika272@gmail.com` secara instan ke pengunjung.
 - Menguji pengiriman email secara sungguhan (*live test*) dan berhasil terkirim dengan ID pesan Gmail SMTP.
 
+---
+---
+
+## Pembersihan Berkas Supabase & Penataan Rule Gitignore (Update Terbaru)
+
+Menghapus file legacy Supabase yang tidak lagi digunakan dan mengonfigurasi `.gitignore` agar folder `.agents` (skill AI), dokumen migrasi, file pengujian, serta berkas yang tidak relevan tidak ikut terunggah (*push*) ke GitHub maupun Vercel.
+
+### 70. Pembersihan Berkas Legacy Supabase (Dihapus)
+- Menghapus berkas `supabase_setup.sql` dan `src/utils/supabase.js` karena seluruh arsitektur data relasional telah dialihkan penuh ke Cloudflare D1 Database.
+
+### 71. [.gitignore](file:///c:/laragon/www/Rajut/.gitignore) (Diubah)
+- Menambahkan aturan pengecualian baru untuk:
+  - Folder skill AI: `.agents/` dan `skills-lock.json`
+  - Dokumen internal: `CLOUDFLARE_MIGRATION.md`
+  - File skrip/pengujian sementara: `test_real_img.png` dan `server.js`
+  - Folder media unggahan lokal: `public/uploads/*` (kecuali `.gitkeep`)
+  - Sub-direktori Cloudflare Worker: `my-backend-api/node_modules/`, `my-backend-api/.wrangler/`, dan `my-backend-api/.env*`
+
+
 
 
 
