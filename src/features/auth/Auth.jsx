@@ -10,6 +10,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   // Login State
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+  const [showLoginPassword, setShowLoginPassword] = useState(false)
 
   // Register State
   const [regName, setRegName] = useState('')
@@ -17,14 +18,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regPhone, setRegPhone] = useState('')
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
+  const [showRegPassword, setShowRegPassword] = useState(false)
 
   const [loading, setLoading] = useState(false)
-
-  const handleQuickAdminLogin = () => {
-    setLoginEmail('admin@tokorajut.com')
-    setLoginPassword('admin')
-    showToast('Kredensial Admin diisikan otomatis!', 'info')
-  }
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
@@ -135,34 +131,12 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
           {/* Login Form */}
           {tab === 'login' ? (
             <form onSubmit={handleLoginSubmit}>
-              {/* Demo Admin Quick Fill Button */}
-              <div 
-                onClick={handleQuickAdminLogin}
-                style={{
-                  background: '#fff3eb',
-                  border: '1px dashed #d2691e',
-                  padding: '10px 14px',
-                  borderRadius: '10px',
-                  marginBottom: '1.25rem',
-                  cursor: 'pointer',
-                  fontSize: '0.82rem',
-                  color: '#d2691e',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'transform 0.2s ease'
-                }}
-              >
-                <span><strong>⚡ Quick Fill Admin:</strong> admin@tokorajut.com</span>
-                <span style={{ fontWeight: '600', textDecoration: 'underline' }}>Isi Otomatis</span>
-              </div>
-
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label htmlFor="loginEmail" style={{ fontWeight: '500', color: '#1e293b' }}>Email</label>
                 <input
                   type="email"
                   id="loginEmail"
-                  placeholder="admin@tokorajut.com"
+                  placeholder="haikaladika8@gmail.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
@@ -171,14 +145,37 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <label htmlFor="loginPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
-                <input
-                  type="password"
-                  id="loginPassword"
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showLoginPassword ? 'text' : 'password'}
+                    id="loginPassword"
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    style={{ paddingRight: '48px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={showLoginPassword ? "Sembunyikan Password" : "Tampilkan Password"}
+                  >
+                    {showLoginPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
               </div>
 
               <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
@@ -238,14 +235,37 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                 <label htmlFor="regPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
-                <input
-                  type="password"
-                  id="regPassword"
-                  placeholder="Minimal 4 karakter"
-                  value={regPassword}
-                  onChange={(e) => setRegPassword(e.target.value)}
-                  required
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showRegPassword ? 'text' : 'password'}
+                    id="regPassword"
+                    placeholder="Minimal 4 karakter"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    required
+                    style={{ paddingRight: '48px', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    style={{
+                      position: 'absolute',
+                      right: '12px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title={showRegPassword ? "Sembunyikan Password" : "Tampilkan Password"}
+                  >
+                    {showRegPassword ? '👁️' : '🙈'}
+                  </button>
+                </div>
               </div>
 
               <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
