@@ -1,6 +1,10 @@
 import dotenv from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -20,7 +24,7 @@ const memoryDb = {
       address: 'Kantor Pusat Toko Rajut',
       phone: '08123456789',
       email: 'haikaladika8@gmail.com',
-      password: '$2b$10$wN831utm2G1GN74CHuXxwuKu1xSND4Mz.DflIoo0wcWg.wBu4DZ3.', // password: Haikal552005
+      password: '$2b$10$ywdZSKkl4KQN1.W4FUrbOetSJAa2vUBMgF6sUCyY2bMQHeVI8tWsS', // password: Haikal552005
       role: 'admin',
       created_at: new Date().toISOString()
     },
@@ -42,35 +46,57 @@ const memoryDb = {
   contact_messages: []
 }
 
-// Cloudflare D1 REST API Client
-export async function queryD1(sql, params = []) {
-  if (!cfAccountId || !cfD1DatabaseId || !cfApiToken) {
-    return { success: false, results: [] }
-  }
-
+// Cloudflare D1 Query via Wrangler CLI Fallback
+export async function queryD1ViaWrangler(sql, params = []) {
   try {
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/d1/database/${cfD1DatabaseId}/query`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${cfApiToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ sql, params })
-      }
-    )
-
-    const json = await response.json()
-    if (!json.success || !json.result || json.result.length === 0) {
-      return { success: false, results: [] }
+    let formattedSql = sql
+    for (const param of params) {
+      const val = typeof param === 'string' ? `'${param.replace(/'/g, "''")}'` : param
+      formattedSql = formattedSql.replace('?', val)
     }
 
-    return { success: true, results: json.result[0].results || [] }
+    const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+    const command = `${npxCmd} wrangler d1 execute rajut-db --remote --json --command="${formattedSql.replace(/"/g, '\\"')}"`
+    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true })
+
+    const parsed = JSON.parse(stdout)
+    if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].success) {
+      return { success: true, results: parsed[0].results || [], meta: parsed[0].meta }
+    }
+    return { success: false, results: [] }
   } catch (err) {
-    console.error('Error querying Cloudflare D1 API:', err.message)
+    console.error('Wrangler D1 CLI query error:', err.message)
     return { success: false, results: [] }
   }
+}
+
+// Cloudflare D1 REST API Client with Wrangler CLI Fallback
+export async function queryD1(sql, params = []) {
+  if (cfAccountId && cfD1DatabaseId && cfApiToken) {
+    try {
+      const response = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${cfAccountId}/d1/database/${cfD1DatabaseId}/query`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${cfApiToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ sql, params })
+        }
+      )
+
+      const json = await response.json()
+      if (json.success && json.result && json.result.length > 0) {
+        return { success: true, results: json.result[0].results || [] }
+      }
+    } catch (err) {
+      console.error('Error querying Cloudflare D1 REST API:', err.message)
+    }
+  }
+
+  // Fallback to Wrangler CLI if REST API token is invalid or fails
+  return queryD1ViaWrangler(sql, params)
 }
 
 // Supabase-compatible D1 QueryBuilder with in-memory fallback
@@ -129,82 +155,80 @@ class D1TableQuery {
     return this
   }
 
-  async execute() {
-    // If Cloudflare D1 environment variables are missing, use in-memory store
-    if (!cfAccountId || !cfD1DatabaseId || !cfApiToken) {
-      const tableData = memoryDb[this.table] || []
+  executeInMemory() {
+    const tableData = memoryDb[this.table] || []
 
-      if (this.operation === 'select') {
-        let results = [...tableData]
-        for (const cond of this.whereConditions) {
-          results = results.filter(r => String(r[cond.col]).toLowerCase() === String(cond.val).toLowerCase())
-        }
-        if (this.orderBy) {
-          const [col, dir] = this.orderBy.split(' ')
-          results.sort((a, b) => dir === 'DESC' ? (b[col] > a[col] ? 1 : -1) : (a[col] > b[col] ? 1 : -1))
-        }
-        if (this.limitVal) {
-          results = results.slice(0, this.limitVal)
-        }
-        if (this.selectOptions.count === 'exact') {
-          return { data: results, count: results.length, error: null }
-        }
-        return { data: results, error: null }
+    if (this.operation === 'select') {
+      let results = [...tableData]
+      for (const cond of this.whereConditions) {
+        results = results.filter(r => String(r[cond.col] || '').toLowerCase() === String(cond.val || '').toLowerCase())
       }
-
-      if (this.operation === 'insert') {
-        const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
-        const insertedResults = []
-        for (const row of rows) {
-          const currentItems = memoryDb[this.table] || []
-          const maxId = currentItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
-          const newRow = {
-            created_at: new Date().toISOString(),
-            ...row,
-            id: maxId + 1
-          }
-
-          if (!memoryDb[this.table]) memoryDb[this.table] = []
-          memoryDb[this.table].unshift(newRow)
-          insertedResults.push(newRow)
-        }
-        return { data: insertedResults, error: null }
+      if (this.orderBy) {
+        const [col, dir] = this.orderBy.split(' ')
+        results.sort((a, b) => dir === 'DESC' ? (b[col] > a[col] ? 1 : -1) : (a[col] > b[col] ? 1 : -1))
       }
-
-
-      if (this.operation === 'update') {
-        let updated = []
-        const dataArr = memoryDb[this.table] || []
-        for (let i = 0; i < dataArr.length; i++) {
-          let match = true
-          for (const cond of this.whereConditions) {
-            if (String(dataArr[i][cond.col]) !== String(cond.val)) {
-              match = false
-              break
-            }
-          }
-          if (match) {
-            dataArr[i] = { ...dataArr[i], ...this.updateData }
-            updated.push(dataArr[i])
-          }
-        }
-        return { data: updated, error: null }
+      if (this.limitVal) {
+        results = results.slice(0, this.limitVal)
       }
-
-      if (this.operation === 'delete') {
-        if (memoryDb[this.table]) {
-          memoryDb[this.table] = memoryDb[this.table].filter(r => {
-            for (const cond of this.whereConditions) {
-              if (String(r[cond.col]) === String(cond.val)) return false
-            }
-            return true
-          })
-        }
-        return { error: null }
+      if (this.selectOptions.count === 'exact') {
+        return { data: results, count: results.length, error: null }
       }
+      return { data: results, error: null }
     }
 
-    // Otherwise query Cloudflare D1 REST API
+    if (this.operation === 'insert') {
+      const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
+      const insertedResults = []
+      for (const row of rows) {
+        const currentItems = memoryDb[this.table] || []
+        const maxId = currentItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
+        const newRow = {
+          created_at: new Date().toISOString(),
+          ...row,
+          id: maxId + 1
+        }
+
+        if (!memoryDb[this.table]) memoryDb[this.table] = []
+        memoryDb[this.table].unshift(newRow)
+        insertedResults.push(newRow)
+      }
+      return { data: insertedResults, error: null }
+    }
+
+    if (this.operation === 'update') {
+      let updated = []
+      const dataArr = memoryDb[this.table] || []
+      for (let i = 0; i < dataArr.length; i++) {
+        let match = true
+        for (const cond of this.whereConditions) {
+          if (String(dataArr[i][cond.col]).toLowerCase() !== String(cond.val).toLowerCase()) {
+            match = false
+            break
+          }
+        }
+        if (match) {
+          dataArr[i] = { ...dataArr[i], ...this.updateData }
+          updated.push(dataArr[i])
+        }
+      }
+      return { data: updated, error: null }
+    }
+
+    if (this.operation === 'delete') {
+      if (memoryDb[this.table]) {
+        memoryDb[this.table] = memoryDb[this.table].filter(r => {
+          for (const cond of this.whereConditions) {
+            if (String(r[cond.col]).toLowerCase() === String(cond.val).toLowerCase()) return false
+          }
+          return true
+        })
+      }
+      return { error: null }
+    }
+  }
+
+  async execute() {
+    // Attempt Cloudflare D1 query (REST API with Wrangler CLI fallback)
     if (this.operation === 'select') {
       let sql = `SELECT ${this.selectColumns === '*' ? '*' : this.selectColumns} FROM ${this.table}`
       const params = []
@@ -225,17 +249,19 @@ class D1TableQuery {
         sql += ` LIMIT ${this.limitVal}`
       }
 
-      const { results } = await queryD1(sql, params)
-
-      if (this.selectOptions.count === 'exact') {
-        return { data: results, count: results.length, error: null }
+      const d1Res = await queryD1(sql, params)
+      if (d1Res.success) {
+        if (this.selectOptions.count === 'exact') {
+          return { data: d1Res.results, count: d1Res.results.length, error: null }
+        }
+        return { data: d1Res.results, error: null }
       }
-      return { data: results, error: null }
     }
 
     if (this.operation === 'insert') {
       const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
       const insertedResults = []
+      let allSuccess = true
 
       for (const row of rows) {
         const keys = Object.keys(row)
@@ -243,15 +269,20 @@ class D1TableQuery {
         const placeholders = keys.map(() => '?').join(', ')
         const sql = `INSERT INTO ${this.table} (${keys.join(', ')}) VALUES (${placeholders}) RETURNING *`
 
-        const { results } = await queryD1(sql, values)
-        if (results && results.length > 0) {
-          insertedResults.push(results[0])
-        } else {
+        const d1Res = await queryD1(sql, values)
+        if (d1Res.success && d1Res.results && d1Res.results.length > 0) {
+          insertedResults.push(d1Res.results[0])
+        } else if (d1Res.success) {
           insertedResults.push(row)
+        } else {
+          allSuccess = false
+          break
         }
       }
 
-      return { data: insertedResults, error: null }
+      if (allSuccess) {
+        return { data: insertedResults, error: null }
+      }
     }
 
     if (this.operation === 'update') {
@@ -272,8 +303,10 @@ class D1TableQuery {
 
       sql += ` RETURNING *`
 
-      const { results } = await queryD1(sql, params)
-      return { data: results, error: null }
+      const d1Res = await queryD1(sql, params)
+      if (d1Res.success) {
+        return { data: d1Res.results, error: null }
+      }
     }
 
     if (this.operation === 'delete') {
@@ -288,9 +321,16 @@ class D1TableQuery {
         sql += ` WHERE ${clauses.join(' AND ')}`
       }
 
-      await queryD1(sql, params)
-      return { error: null }
+      const d1Res = await queryD1(sql, params)
+      if (d1Res.success) {
+        return { error: null }
+      }
     }
+
+    console.warn('Cloudflare D1 query failed, falling back to in-memory store.')
+
+    // Fallback to in-memory database store
+    return this.executeInMemory()
   }
 
   then(onFulfilled, onRejected) {

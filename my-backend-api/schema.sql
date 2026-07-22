@@ -51,5 +51,5 @@ INSERT OR IGNORE INTO projects (id, title, description, image_url) VALUES
 
 -- Seed Default Admin & User Accounts (Password: admin & user)
 INSERT OR IGNORE INTO users (id, name, address, phone, email, password, role) VALUES
-  (1, 'Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'admin@tokorajut.com', '$2a$10$W1eH.f3vGvB7S.H6tL7gceZ0r1q5L1d3c0k3H4h.4n2b1a0c0d0e0', 'admin'),
+  (1, 'Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'haikaladika8@gmail.com', '$2b$10$ywdZSKkl4KQN1.W4FUrbOetSJAa2vUBMgF6sUCyY2bMQHeVI8tWsS', 'admin'),
   (2, 'Budi Santoso', 'Jl. Kenari No. 12, Jakarta', '08987654321', 'user@tokorajut.com', '$2a$10$W1eH.f3vGvB7S.H6tL7gceZ0r1q5L1d3c0k3H4h.4n2b1a0c0d0e0', 'user');

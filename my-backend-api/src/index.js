@@ -139,7 +139,7 @@ export default {
 					return errorResponse('Email dan password harus diisi!');
 				}
 
-				const user = await env.DB.prepare('SELECT * FROM users WHERE email = ?').bind(email).first();
+				const user = await env.DB.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').bind(email).first();
 				if (!user) {
 					return errorResponse('Email atau password salah!');
 				}
