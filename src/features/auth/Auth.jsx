@@ -20,10 +20,16 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
   const [loading, setLoading] = useState(false)
 
+  const handleQuickAdminLogin = () => {
+    setLoginEmail('admin@tokorajut.com')
+    setLoginPassword('admin')
+    showToast('Kredensial Admin diisikan otomatis!', 'info')
+  }
+
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    showToast('Sedang masuk...', 'loading', 0)
+    showToast('Sedang memverifikasi akun...', 'loading', 0)
 
     try {
       const data = await loginUser(loginEmail.trim(), loginPassword)
@@ -31,14 +37,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       localStorage.setItem('user', JSON.stringify(data.user))
       onLoginSuccess(data.user)
       
-      showToast('Masuk berhasil! Selamat datang kembali.', 'success')
+      showToast('Login Berhasil! Selamat datang kembali.', 'success')
       
       setLoginEmail('')
       setLoginPassword('')
 
       setTimeout(() => {
         onSectionChange('home')
-      }, 1000)
+      }, 800)
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Email atau password salah!', 'error')
@@ -50,7 +56,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const handleRegisterSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
-    showToast('Pendaftaran akun...', 'loading', 0)
+    showToast('Sedang memproses pendaftaran...', 'loading', 0)
 
     const userData = {
       name: regName.trim(),
@@ -77,7 +83,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
       setTimeout(() => {
         onSectionChange('home')
-      }, 1000)
+      }, 800)
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Gagal mendaftar!', 'error')
@@ -86,65 +92,73 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     }
   }
 
-  const authContainerStyle = {
-    background: 'white',
-    padding: '2.5rem',
-    borderRadius: '1.5rem',
-    boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
-    maxWidth: '500px',
-    width: '100%',
-    margin: '2rem auto',
-    boxSizing: 'border-box'
-  }
-
-  const tabContainerStyle = {
-    display: 'flex',
-    borderBottom: '2px solid #e9ecef',
-    marginBottom: '2rem',
-    gap: '1.5rem'
-  }
-
-  const getTabStyle = (currentTab) => ({
-    padding: '10px 5px',
-    fontSize: '1.1rem',
-    fontWeight: '600',
-    color: tab === currentTab ? '#d2691e' : '#6c757d',
-    border: 'none',
-    background: 'none',
-    cursor: 'pointer',
-    borderBottom: tab === currentTab ? '3px solid #d2691e' : '3px solid transparent',
-    marginBottom: '-2px',
-    transition: 'all 0.3s ease'
-  })
-
   return (
-    <section id="auth" className={`section ${isActive ? 'active' : ''}`} style={{ display: isActive ? 'flex' : 'none', alignItems: 'center', minHeight: 'calc(var(--vh, 1vh) * 80)' }}>
+    <section id="auth" className={`section ${isActive ? 'active' : ''}`} style={{ display: isActive ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(var(--vh, 1vh) * 80)', padding: '2rem 1rem' }}>
       <div className="container" style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-        <div style={authContainerStyle}>
+        <div style={{
+          background: 'rgba(255, 255, 255, 0.98)',
+          backdropFilter: 'blur(16px)',
+          padding: '2.5rem',
+          borderRadius: '1.5rem',
+          boxShadow: '0 25px 50px -12px rgba(210, 105, 30, 0.12)',
+          maxWidth: '460px',
+          width: '100%',
+          boxSizing: 'border-box',
+          border: '1px solid rgba(226, 232, 240, 0.9)'
+        }}>
+
+          {/* Logo Header */}
+          <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🧶</div>
+            <h2 style={{ fontSize: '1.5rem', color: '#1e293b', marginBottom: '0.25rem', fontWeight: '700' }}>Toko Rajut</h2>
+            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Masuk atau daftar untuk mengakses fitur akun</p>
+          </div>
           
-          {/* Tabs */}
-          <div style={tabContainerStyle}>
+          {/* Mode Pill Switcher */}
+          <div className="mode-pill-tabs" style={{ marginBottom: '1.75rem' }}>
             <button 
               type="button" 
-              style={getTabStyle('login')} 
-              onClick={() => { setTab('login'); }}
+              className={`mode-pill-btn ${tab === 'login' ? 'active' : ''}`}
+              onClick={() => setTab('login')}
             >
-              Masuk
+              🔑 Masuk
             </button>
             <button 
               type="button" 
-              style={getTabStyle('register')} 
-              onClick={() => { setTab('register'); }}
+              className={`mode-pill-btn ${tab === 'register' ? 'active' : ''}`}
+              onClick={() => setTab('register')}
             >
-              Daftar
+              📝 Daftar
             </button>
           </div>
 
           {/* Login Form */}
           {tab === 'login' ? (
             <form onSubmit={handleLoginSubmit}>
-              <div className="form-group">
-                <label htmlFor="loginEmail">Email</label>
+              {/* Demo Admin Quick Fill Button */}
+              <div 
+                onClick={handleQuickAdminLogin}
+                style={{
+                  background: '#fff3eb',
+                  border: '1px dashed #d2691e',
+                  padding: '10px 14px',
+                  borderRadius: '10px',
+                  marginBottom: '1.25rem',
+                  cursor: 'pointer',
+                  fontSize: '0.82rem',
+                  color: '#d2691e',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  transition: 'transform 0.2s ease'
+                }}
+              >
+                <span><strong>⚡ Quick Fill Admin:</strong> admin@tokorajut.com</span>
+                <span style={{ fontWeight: '600', textDecoration: 'underline' }}>Isi Otomatis</span>
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="loginEmail" style={{ fontWeight: '500', color: '#1e293b' }}>Email</label>
                 <input
                   type="email"
                   id="loginEmail"
@@ -154,8 +168,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="loginPassword">Password</label>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="loginPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
                 <input
                   type="password"
                   id="loginPassword"
@@ -165,15 +180,16 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   required
                 />
               </div>
-              <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: '1.5rem' }}>
-                {loading ? 'Memproses...' : 'Masuk'}
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
+                {loading ? 'Memproses Login...' : '🔑 Masuk ke Akun'}
               </Button>
             </form>
           ) : (
-            // Register Form
+            /* Register Form */
             <form onSubmit={handleRegisterSubmit}>
-              <div className="form-group">
-                <label htmlFor="regName">Nama Lengkap</label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regName" style={{ fontWeight: '500', color: '#1e293b' }}>Nama Lengkap</label>
                 <input
                   type="text"
                   id="regName"
@@ -183,19 +199,21 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="regAddress">Alamat</label>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regAddress" style={{ fontWeight: '500', color: '#1e293b' }}>Alamat Tempat Tinggal</label>
                 <input
                   type="text"
                   id="regAddress"
-                  placeholder="Masukkan alamat tempat tinggal"
+                  placeholder="Contoh: Jl. Kenari No. 12, Jakarta"
                   value={regAddress}
                   onChange={(e) => setRegAddress(e.target.value)}
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="regPhone">No. Telepon</label>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regPhone" style={{ fontWeight: '500', color: '#1e293b' }}>No. Telepon / WhatsApp</label>
                 <input
                   type="tel"
                   id="regPhone"
@@ -205,8 +223,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="regEmail">Email</label>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regEmail" style={{ fontWeight: '500', color: '#1e293b' }}>Email</label>
                 <input
                   type="email"
                   id="regEmail"
@@ -216,23 +235,24 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   required
                 />
               </div>
-              <div className="form-group">
-                <label htmlFor="regPassword">Password</label>
+
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="regPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
                 <input
                   type="password"
                   id="regPassword"
-                  placeholder="Buat password minimal 4 karakter"
+                  placeholder="Minimal 4 karakter"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   required
                 />
               </div>
-              <Button type="submit" disabled={loading} style={{ width: '100%', marginTop: '1.5rem' }}>
-                {loading ? 'Mendaftarkan...' : 'Daftar Sekarang'}
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
+                {loading ? 'Mendaftarkan Akun...' : '📝 Daftar Akun Baru'}
               </Button>
             </form>
           )}
-
         </div>
       </div>
     </section>

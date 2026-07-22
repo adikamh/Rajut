@@ -29,8 +29,11 @@ export default function Header({ activeSection, onSectionChange, user, onLogout 
         <div className="container">
           <div className="header-content">
             <div className="logo">
-              <a href="#home" onClick={(e) => handleLinkClick(e, 'home')}>Toko Rajut</a>
+              <a href="#home" onClick={(e) => handleLinkClick(e, 'home')} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.5rem' }}>🧶</span> Toko Rajut
+              </a>
             </div>
+
             <nav className="nav" style={{ alignItems: 'center' }}>
               {navItems.map((item) => (
                 <a

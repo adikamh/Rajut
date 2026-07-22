@@ -38,7 +38,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
   const handleUploadSubmit = async (e) => {
     e.preventDefault()
     setUploading(true)
-    showToast('Sedang mengunggah foto...', 'loading', 0)
+    showToast('Sedang mengunggah foto ke Google Drive...', 'loading', 0)
 
     try {
       let result
@@ -64,7 +64,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       const fileInput = document.getElementById('galleryFileInput')
       if (fileInput) fileInput.value = ''
       
-      showToast('Gambar berhasil ditambahkan ke galeri!', 'success')
+      showToast('Foto berhasil ditambahkan ke galeri!', 'success')
     } catch (err) {
       console.error(err)
       showToast(`Gagal mengunggah gambar: ${err.message}`, 'error')
@@ -100,7 +100,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       setEditingItem(null)
       setEditUrlInput('')
       setEditSelectedFile(null)
-      showToast('Gambar berhasil diubah!', 'success')
+      showToast('Foto berhasil diperbarui!', 'success')
     } catch (err) {
       console.error(err)
       showToast(`Gagal mengubah gambar: ${err.message}`, 'error')
@@ -111,44 +111,33 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
   const confirmDeleteGalleryImage = async (id) => {
     setDeleteConfirmId(null)
-    showToast('Sedang menghapus foto...', 'loading', 0)
+    showToast('Sedang menghapus foto dari Drive...', 'loading', 0)
 
     try {
       await deleteGalleryImage(id)
       onDeleteImage(id)
-      showToast('Foto berhasil dihapus dari galeri!', 'success')
+      showToast('Foto berhasil dihapus dari galeri & Google Drive!', 'success')
     } catch (err) {
       console.error(err)
       showToast(`Gagal menghapus foto: ${err.message}`, 'error')
     }
   }
 
-  const overlayStyle = {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    width: '100%',
-    height: '100%',
-    background: 'rgba(0,0,0,0.8)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 10000,
-    cursor: 'pointer'
-  }
-
-  const enlargedImgStyle = {
-    maxWidth: '90%',
-    maxHeight: '90%',
-    objectFit: 'contain',
-    borderRadius: '1rem'
-  }
+  const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&fit=crop'
 
   const getFullImgUrl = (url) => {
-    if (!url) return ''
+    if (!url) return FALLBACK_IMAGE
+
+    // Auto-convert any Google Drive URL into proxy stream URL
+    const driveMatch = url.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
+    if (driveMatch && driveMatch[1]) {
+      return `/api/drive-image/${driveMatch[1]}`
+    }
+
     if (url.startsWith('http')) return url
-    return `http://localhost:3001${url}`
+    return url.startsWith('/') ? url : `/${url}`
   }
+
 
   const modalOverlayStyle = {
     position: 'fixed',
@@ -156,100 +145,91 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
     left: 0,
     width: '100%',
     height: '100%',
-    background: 'rgba(0, 0, 0, 0.6)',
-    backdropFilter: 'blur(5px)',
+    background: 'rgba(15, 23, 42, 0.75)',
+    backdropFilter: 'blur(8px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10000,
-    animation: 'slideUp 0.3s ease-out',
+    animation: 'fadeIn 0.25s ease-out',
     padding: '20px',
     boxSizing: 'border-box'
   }
 
   const modalContentStyle = {
-    background: 'white',
+    background: '#ffffff',
     borderRadius: '1.5rem',
-    boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
-    maxWidth: '500px',
+    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+    maxWidth: '520px',
     width: '100%',
-    padding: '2rem',
+    padding: '2.25rem',
     position: 'relative',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    border: '1px solid rgba(226, 232, 240, 0.8)'
   }
 
   return (
     <section id="gallery" className={`section ${isActive ? 'active' : ''}`}>
       <div className="container">
-        <h2>Gallery</h2>
+        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+          <h2>Galeri Produk Rajut</h2>
+          <p className="section-subtitle">
+            Koleksi karya rajutan tangan eksklusif buatan Toko Rajut dengan benang berkualitas tinggi.
+          </p>
+        </div>
 
         {/* Upload Form Panel - Render only for admin */}
         {user && user.role === 'admin' && (
-          <div style={{
-            background: 'white',
-            padding: '2rem',
-            borderRadius: '1rem',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.05)',
-            marginBottom: '3rem',
-            maxWidth: '600px',
-            marginLeft: 'auto',
-            marginRight: 'auto'
-          }}>
-            <h3 style={{ fontSize: '1.25rem', color: '#d2691e', marginBottom: '1.5rem', textAlign: 'center' }}>
-              Unggah Foto Baru ke Galeri (Admin Only)
+          <div className="upload-panel-card">
+            <h3 style={{ fontSize: '1.2rem', color: '#d2691e', marginBottom: '1.25rem', textAlign: 'center', fontWeight: '600' }}>
+              ✨ Unggah Foto Baru (Admin)
             </h3>
 
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', justifyContent: 'center' }}>
+            {/* Mode Pill Switcher */}
+            <div className="mode-pill-tabs">
               <button
                 type="button"
-                className="btn"
-                onClick={() => { setUploadMode('file'); }}
-                style={{
-                  padding: '8px 16px',
-                  minHeight: 'auto',
-                  fontSize: '0.9rem',
-                  background: uploadMode === 'file' ? '#d2691e' : '#e9ecef',
-                  color: uploadMode === 'file' ? 'white' : '#1a1a1a',
-                  border: 'none',
-                  borderRadius: '8px'
-                }}
+                className={`mode-pill-btn ${uploadMode === 'file' ? 'active' : ''}`}
+                onClick={() => setUploadMode('file')}
               >
-                Upload File
+                📁 Unggah File
               </button>
               <button
                 type="button"
-                className="btn"
-                onClick={() => { setUploadMode('url'); }}
-                style={{
-                  padding: '8px 16px',
-                  minHeight: 'auto',
-                  fontSize: '0.9rem',
-                  background: uploadMode === 'url' ? '#d2691e' : '#e9ecef',
-                  color: uploadMode === 'url' ? 'white' : '#1a1a1a',
-                  border: 'none',
-                  borderRadius: '8px'
-                }}
+                className={`mode-pill-btn ${uploadMode === 'url' ? 'active' : ''}`}
+                onClick={() => setUploadMode('url')}
               >
-                Gunakan URL
+                🔗 Gunakan URL
               </button>
             </div>
 
             <form onSubmit={handleUploadSubmit}>
               {uploadMode === 'file' ? (
-                <div className="form-group">
-                  <label htmlFor="galleryFileInput" style={{ fontWeight: '500' }}>Pilih File Gambar</label>
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label htmlFor="galleryFileInput" style={{ fontWeight: '500', color: '#1e293b' }}>
+                    Pilih File Foto
+                  </label>
                   <input
                     type="file"
                     id="galleryFileInput"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/jpg,image/webp,image/heic,image/heif,.heic,.heif"
                     onChange={handleFileChange}
-                    style={{ border: 'none', padding: '10px 0' }}
+                    style={{ border: '2px dashed #cbd5e1', padding: '14px', borderRadius: '12px', width: '100%', background: '#f8fafc', cursor: 'pointer' }}
                     required
                   />
+                  <div className="format-tags-wrapper">
+                    <span className="format-pill">JPG</span>
+                    <span className="format-pill">PNG</span>
+                    <span className="format-pill">WEBP</span>
+                    <span className="format-pill">HEIC (iPhone)</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 'auto' }}>Direct Google Drive HD Sync</span>
+                  </div>
                 </div>
               ) : (
-                <div className="form-group">
-                  <label htmlFor="galleryUrlInput" style={{ fontWeight: '500' }}>Masukkan URL Gambar</label>
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label htmlFor="galleryUrlInput" style={{ fontWeight: '500', color: '#1e293b' }}>
+                    Masukkan URL Gambar
+                  </label>
                   <input
                     type="url"
                     id="galleryUrlInput"
@@ -261,30 +241,39 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                 </div>
               )}
 
-              <Button type="submit" disabled={uploading} style={{ width: '100%', marginTop: '1rem' }}>
-                {uploading ? 'Mengunggah...' : 'Tambahkan ke Galeri'}
+              <Button type="submit" disabled={uploading} style={{ width: '100%', marginTop: '0.75rem' }}>
+                {uploading ? 'Mengunggah ke Drive...' : '📤 Tambahkan ke Galeri'}
               </Button>
             </form>
           </div>
         )}
 
         {/* Gallery Grid */}
-        {loading && <p style={{ textAlign: 'center', color: '#6c757d' }}>Memuat data galeri...</p>}
+        {loading && <p style={{ textAlign: 'center', color: '#64748b', padding: '3rem' }}>Memuat data galeri...</p>}
+        
+        {!loading && galleryItems.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#ffffff', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', marginTop: '1.5rem' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🧶</div>
+            <h3 style={{ fontSize: '1.2rem', color: '#1e293b', marginBottom: '0.5rem' }}>Belum Ada Foto di Galeri</h3>
+            <p style={{ fontSize: '0.95rem', color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
+              {user && user.role === 'admin'
+                ? 'Gunakan form di atas untuk mengunggah foto rajutan pertama Anda ke Google Drive.'
+                : 'Foto produk rajutan terbaru akan segera ditampilkan di sini.'}
+            </p>
+          </div>
+        )}
+
         <div className="gallery-grid">
           {galleryItems.map((item, index) => (
-            <div
-              key={item.id || index}
-              className="gallery-item"
-              onClick={() => setLightboxImage(getFullImgUrl(item.image_url))}
-            >
-              <img src={getFullImgUrl(item.image_url)} alt={`Gallery item ${index + 1}`} />
-              
-              {/* Admin actions overlay */}
+            <div key={item.id || index} className="gallery-card">
+              <span className="gallery-badge">🧶 Rajutan</span>
+
+              {/* Admin Actions Glass Pills */}
               {user && user.role === 'admin' && (
-                <div className="gallery-item-actions" onClick={(e) => e.stopPropagation()}>
+                <div className="admin-glass-actions" onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    className="gallery-action-btn edit"
+                    className="admin-icon-btn edit"
                     title="Edit Foto"
                     onClick={() => {
                       setEditingItem(item)
@@ -300,22 +289,94 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                   </button>
                   <button
                     type="button"
-                    className="gallery-action-btn delete"
+                    className="admin-icon-btn delete"
                     title="Hapus Foto"
                     onClick={() => setDeleteConfirmId(item.id)}
                   >
-                    ✕
+                    🗑️
                   </button>
                 </div>
               )}
+
+              <div
+                className="gallery-card-img-wrapper"
+                onClick={() => setLightboxImage(getFullImgUrl(item.image_url))}
+                style={{ cursor: 'pointer' }}
+              >
+                <img
+                  src={getFullImgUrl(item.image_url)}
+                  alt={`Karya Rajut ${index + 1}`}
+                  onError={(e) => {
+                    e.target.onerror = null
+                    e.target.src = FALLBACK_IMAGE
+                  }}
+                />
+                
+                <div className="gallery-card-overlay">
+                  <button type="button" className="gallery-zoom-btn">
+                    🔍 Perbesar Foto
+                  </button>
+                </div>
+              </div>
             </div>
           ))}
         </div>
       </div>
 
+      {/* Lightbox Enlarged Image Modal */}
       {lightboxImage && (
-        <div style={overlayStyle} onClick={() => setLightboxImage(null)}>
-          <img src={lightboxImage} alt="Enlarged gallery item" style={enlargedImgStyle} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(16px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            cursor: 'pointer',
+            padding: '20px'
+          }}
+          onClick={() => setLightboxImage(null)}
+        >
+          <div style={{ position: 'relative', maxWidth: '900px', width: '100%', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setLightboxImage(null)}
+              style={{
+                position: 'absolute',
+                top: '-48px',
+                right: '0',
+                background: 'rgba(255,255,255,0.2)',
+                color: 'white',
+                border: 'none',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                fontSize: '1.2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              ✕
+            </button>
+            <img
+              src={lightboxImage}
+              alt="Detail Foto Rajut"
+              style={{
+                maxHeight: '80vh',
+                maxWidth: '100%',
+                borderRadius: '1.25rem',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                objectFit: 'contain'
+              }}
+            />
+            <div style={{ marginTop: '12px', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
+              🔒 HD Image Streamed via Google Drive API
+            </div>
+          </div>
         </div>
       )}
 
@@ -323,40 +384,22 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       {editingItem && (
         <div style={modalOverlayStyle} onClick={() => setEditingItem(null)}>
           <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.25rem', color: '#d2691e', marginBottom: '1.5rem', textAlign: 'center' }}>
+            <h3 style={{ fontSize: '1.2rem', color: '#d2691e', marginBottom: '1.25rem', textAlign: 'center', fontWeight: '600' }}>
               Edit Foto Galeri
             </h3>
 
-            <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', justifyContent: 'center' }}>
+            <div className="mode-pill-tabs">
               <button
                 type="button"
-                className="btn"
+                className={`mode-pill-btn ${editMode === 'file' ? 'active' : ''}`}
                 onClick={() => setEditMode('file')}
-                style={{
-                  padding: '8px 16px',
-                  minHeight: 'auto',
-                  fontSize: '0.9rem',
-                  background: editMode === 'file' ? '#d2691e' : '#e9ecef',
-                  color: editMode === 'file' ? 'white' : '#1a1a1a',
-                  border: 'none',
-                  borderRadius: '8px'
-                }}
               >
                 Upload File
               </button>
               <button
                 type="button"
-                className="btn"
+                className={`mode-pill-btn ${editMode === 'url' ? 'active' : ''}`}
                 onClick={() => setEditMode('url')}
-                style={{
-                  padding: '8px 16px',
-                  minHeight: 'auto',
-                  fontSize: '0.9rem',
-                  background: editMode === 'url' ? '#d2691e' : '#e9ecef',
-                  color: editMode === 'url' ? 'white' : '#1a1a1a',
-                  border: 'none',
-                  borderRadius: '8px'
-                }}
               >
                 Gunakan URL
               </button>
@@ -365,24 +408,29 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
             <form onSubmit={handleEditSubmit}>
               {editMode === 'file' ? (
                 <div className="form-group">
-                  <label htmlFor="editGalleryFileInput" style={{ fontWeight: '500' }}>Pilih File Gambar Baru</label>
+                  <label htmlFor="editGalleryFileInput" style={{ fontWeight: '500', color: '#1e293b' }}>
+                    Pilih File Gambar Baru
+                  </label>
                   <input
                     type="file"
                     id="editGalleryFileInput"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/jpg,image/webp,image/heic,image/heif,.heic,.heif"
                     onChange={handleEditFileChange}
-                    style={{ border: 'none', padding: '10px 0' }}
+                    style={{ border: '2px dashed #cbd5e1', padding: '12px', borderRadius: '12px', width: '100%', background: '#f8fafc' }}
                     required={!editingItem.image_url}
                   />
-                  {editingItem.image_url && !editingItem.image_url.startsWith('http') && (
-                    <p style={{ fontSize: '0.8rem', color: '#6c757d', marginTop: '5px' }}>
-                      File saat ini: {editingItem.image_url}
-                    </p>
-                  )}
+                  <div className="format-tags-wrapper">
+                    <span className="format-pill">JPG</span>
+                    <span className="format-pill">PNG</span>
+                    <span className="format-pill">WEBP</span>
+                    <span className="format-pill">HEIC</span>
+                  </div>
                 </div>
               ) : (
                 <div className="form-group">
-                  <label htmlFor="editGalleryUrlInput" style={{ fontWeight: '500' }}>Masukkan URL Gambar Baru</label>
+                  <label htmlFor="editGalleryUrlInput" style={{ fontWeight: '500', color: '#1e293b' }}>
+                    Masukkan URL Gambar Baru
+                  </label>
                   <input
                     type="url"
                     id="editGalleryUrlInput"
@@ -394,64 +442,73 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1.75rem' }}>
                 <Button type="submit" disabled={updating} style={{ flex: 1 }}>
                   {updating ? 'Menyimpan...' : 'Simpan'}
                 </Button>
-                <Button
+                <button
                   type="button"
                   onClick={() => setEditingItem(null)}
-                  style={{ flex: 1, background: '#e9ecef', color: '#1a1a1a' }}
+                  style={{
+                    flex: 1,
+                    background: '#f1f5f9',
+                    color: '#475569',
+                    border: 'none',
+                    borderRadius: '8px',
+                    fontWeight: '500',
+                    cursor: 'pointer'
+                  }}
                 >
                   Batal
-                </Button>
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* Custom Premium Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <div style={modalOverlayStyle} onClick={() => setDeleteConfirmId(null)}>
-          <div style={{ ...modalContentStyle, maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ fontSize: '1.25rem', color: '#dc3545', marginBottom: '1rem', textAlign: 'center' }}>
-              Hapus Foto Galeri?
+          <div style={{ ...modalContentStyle, maxWidth: '420px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🗑️</div>
+            <h3 style={{ fontSize: '1.2rem', color: '#dc3545', marginBottom: '0.5rem', fontWeight: '600' }}>
+              Hapus Foto Galeri & Drive?
             </h3>
-            <p style={{ textAlign: 'center', color: '#6c757d', marginBottom: '2rem', lineHeight: '1.5' }}>
-              Apakah Anda yakin ingin menghapus foto ini dari galeri? Tindakan ini tidak dapat dibatalkan.
+            <p style={{ color: '#64748b', marginBottom: '1.75rem', fontSize: '0.92rem', lineHeight: '1.5' }}>
+              Apakah Anda yakin ingin menghapus foto ini? File fisik di <strong>Google Drive</strong> juga akan dihapus permanen.
             </p>
-            <div style={{ display: 'flex', gap: '1rem' }}>
+            <div style={{ display: 'flex', gap: '0.85rem' }}>
               <button
                 type="button"
-                className="btn"
                 onClick={() => confirmDeleteGalleryImage(deleteConfirmId)}
                 style={{
                   flex: 1,
                   background: '#dc3545',
                   color: 'white',
                   border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  fontWeight: '500',
-                  cursor: 'pointer'
+                  borderRadius: '10px',
+                  padding: '12px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
                 }}
               >
-                Hapus
+                Hapus Foto
               </button>
               <button
                 type="button"
-                className="btn"
                 onClick={() => setDeleteConfirmId(null)}
                 style={{
                   flex: 1,
-                  background: '#e9ecef',
-                  color: '#1a1a1a',
+                  background: '#f1f5f9',
+                  color: '#475569',
                   border: 'none',
-                  borderRadius: '8px',
-                  padding: '10px',
+                  borderRadius: '10px',
+                  padding: '12px',
                   fontWeight: '500',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
                 }}
               >
                 Batal

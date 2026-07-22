@@ -11,10 +11,10 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') })
 let transporter
 
 async function createTransporter() {
-  const host = process.env.SMTP_HOST
-  const port = parseInt(process.env.SMTP_PORT) || 587
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com'
+  const port = parseInt(process.env.SMTP_PORT) || 465
   const user = process.env.SMTP_USER
-  const pass = process.env.SMTP_PASS
+  const pass = (process.env.SMTP_PASS || '').replace(/\s+/g, '')
 
   if (user && pass) {
     transporter = nodemailer.createTransport({
@@ -23,7 +23,7 @@ async function createTransporter() {
       secure: port === 465,
       auth: { user, pass }
     })
-    console.log('Nodemailer SMTP Transporter configured.')
+    console.log(`Nodemailer SMTP Transporter configured for ${user} via ${host}.`)
   } else {
     console.log('No SMTP credentials found in .env. Falling back to log-only email service.')
     transporter = {
@@ -45,16 +45,25 @@ createTransporter()
 
 export async function sendContactEmail({ name, email, message }) {
   const mailOptions = {
-    from: process.env.SMTP_FROM || 'info@tokorajut.com',
-    to: process.env.SMTP_TO || 'info@tokorajut.com',
-    subject: `New Contact Us Query from ${name}`,
-    text: `You have received a new contact message:\n\nName: ${name}\nEmail: ${email}\n\nMessage:\n${message}`,
+    from: `"Toko Rajut Contact" <${process.env.SMTP_FROM || 'haikaladika8@gmail.com'}>`,
+    to: process.env.SMTP_TO || 'haikaladika272@gmail.com',
+    replyTo: email,
+    subject: `Pesan Baru Kontak Toko Rajut dari ${name}`,
+    text: `Anda menerima pesan kontak baru dari website Toko Rajut:\n\nNama Pengirim: ${name}\nEmail Pengirim: ${email}\n\nIsi Pesan:\n${message}`,
     html: `
-      <h3>New Contact Us Query</h3>
-      <p><strong>Name:</strong> ${name}</p>
-      <p><strong>Email:</strong> ${email}</p>
-      <p><strong>Message:</strong></p>
-      <p>${message.replace(/\n/g, '<br>')}</p>
+      <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <h2 style="color: #d2691e; margin-bottom: 5px;">🧶 Pesan Baru Kontak Toko Rajut</h2>
+        <p style="color: #64748b; font-size: 0.9rem; margin-top: 0;">Ada pesan baru yang masuk melalui formulir website Toko Rajut.</p>
+        <hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">
+        <p><strong>Nama Pengirim:</strong> ${name}</p>
+        <p><strong>Email Pengirim:</strong> <a href="mailto:${email}">${email}</a></p>
+        <p><strong>Isi Pesan:</strong></p>
+        <div style="background: #fff3eb; padding: 15px; border-left: 4px solid #d2691e; border-radius: 6px; font-size: 0.95rem; color: #1e293b;">
+          ${message.replace(/\n/g, '<br>')}
+        </div>
+        <br>
+        <small style="color: #94a3b8; font-size: 0.8rem;">Anda dapat langsung membalas email ini untuk merespons ${name} (${email}).</small>
+      </div>
     `
   }
 

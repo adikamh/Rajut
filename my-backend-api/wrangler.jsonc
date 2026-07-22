@@ -1,0 +1,30 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-backend-api",
+	"main": "src/index.js",
+	"compatibility_date": "2026-03-10",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "rajut-db",
+			"database_id": "60be802b-390f-40d3-9975-42f64dfe6bd3"
+		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "BUCKET",
+			"bucket_name": "rajut-images"
+		}
+	]
+}

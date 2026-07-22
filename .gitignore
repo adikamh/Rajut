@@ -31,3 +31,16 @@ dist-ssr
 
 # Temporary files
 temp-vite
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
+
+# Service Account Credentials & Bot Secrets
+credentials.json
+bot/
+*.json.secret
+bot/*.json
+

@@ -1,6 +1,5 @@
-const API_BASE_URL = typeof window !== 'undefined' && window.location.origin.includes('localhost')
-  ? 'http://localhost:3001/api'
-  : '/api'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+
 
 function getAuthHeaders() {
   const token = localStorage.getItem('token')
@@ -85,13 +84,19 @@ export async function fetchProjects() {
   return response.json()
 }
 
-export async function createProject(title, description, imageFileOrUrl, isFile = false) {
+export async function createProject(title, description, imageFilesOrUrl, isFile = false) {
   let response
   if (isFile) {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('description', description)
-    formData.append('image', imageFileOrUrl)
+    if (Array.isArray(imageFilesOrUrl) || imageFilesOrUrl instanceof FileList) {
+      Array.from(imageFilesOrUrl).forEach(file => {
+        formData.append('images', file)
+      })
+    } else if (imageFilesOrUrl) {
+      formData.append('images', imageFilesOrUrl)
+    }
     response = await fetch(`${API_BASE_URL}/projects`, {
       method: 'POST',
       headers: {
@@ -106,7 +111,7 @@ export async function createProject(title, description, imageFileOrUrl, isFile =
         'Content-Type': 'application/json',
         ...getAuthHeaders()
       },
-      body: JSON.stringify({ title, description, image_url: imageFileOrUrl })
+      body: JSON.stringify({ title, description, image_url: imageFilesOrUrl })
     })
   }
 
@@ -178,14 +183,18 @@ export async function deleteGalleryImage(id) {
   return response.json()
 }
 
-export async function updateProject(id, title, description, imageFileOrUrl, isFile = false) {
+export async function updateProject(id, title, description, imageFilesOrUrl, isFile = false) {
   let response
   if (isFile) {
     const formData = new FormData()
     formData.append('title', title)
     formData.append('description', description)
-    if (imageFileOrUrl) {
-      formData.append('image', imageFileOrUrl)
+    if (Array.isArray(imageFilesOrUrl) || imageFilesOrUrl instanceof FileList) {
+      Array.from(imageFilesOrUrl).forEach(file => {
+        formData.append('images', file)
+      })
+    } else if (imageFilesOrUrl) {
+      formData.append('images', imageFilesOrUrl)
     }
     response = await fetch(`${API_BASE_URL}/projects/${id}`, {
       method: 'PUT',
@@ -201,7 +210,7 @@ export async function updateProject(id, title, description, imageFileOrUrl, isFi
         'Content-Type': 'application/json',
         ...getAuthHeaders()
       },
-      body: JSON.stringify({ title, description, image_url: imageFileOrUrl })
+      body: JSON.stringify({ title, description, image_url: imageFilesOrUrl })
     })
   }
 
