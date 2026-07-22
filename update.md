@@ -655,4 +655,45 @@ Memperbaiki kegagalan login admin dan pendaftaran pengguna baru pada deployment 
 - **Direct Backend API Endpoint**: Mengonfigurasi fallback `API_BASE_URL` di frontend React agar terhubung langsung ke Cloudflare Worker API backend (`https://my-backend-api.rajut-api.workers.dev/api`).
 - **Solusi Vercel Stateless Issue**: Menghilangkan ketergantungan pada memori RAM serverless Vercel yang bersifat sementara (transient/cold start), sehingga seluruh aksi login admin (`haikaladika8@gmail.com`), pendaftaran akun baru, fetch galeri, proyek, dan kontak pada Vercel dipastikan 100% membaca dan menulis langsung ke Cloudflare D1 Database secara *real-time*.
 
+---
+---
+
+## Pengosongan Data & Gambar Statis Galeri dan Proyek (Update Paling Baru)
+
+Menghapus seluruh item/gambar statis bawaan dari tabel `gallery` dan `projects` di database Cloudflare D1, skrip SQL seeding, serta direktori penyimpanan media lokal.
+
+### 78. Database Cloudflare D1, SQL Schemas & Media Uploads (Diubah)
+- **Pengosongan Tabel Cloudflare D1**: Mengeksekusi perintah `DELETE FROM gallery; DELETE FROM projects;` pada remote database `rajut-db` sehingga seluruh baris data sampel galeri dan proyek terhapus total.
+- **Pembersihan SQL Seeding**: Menghapus baris perintah `INSERT OR IGNORE INTO gallery...` dan `INSERT OR IGNORE INTO projects...` dari [d1_setup.sql](file:///c:/laragon/www/Rajut/d1_setup.sql) dan [my-backend-api/schema.sql](file:///c:/laragon/www/Rajut/my-backend-api/schema.sql) agar tabel tetap bersih saat inisialisasi ulang.
+- **Penyesuaian Response Fallback Worker**: Memperbarui [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) agar respon fallback pengambil data galeri dan proyek mengembalikan array kosong (`[]`).
+- **Pembersihan Berkas Unggahan Lokal**: Menghapus seluruh file media gambar lama dari folder `public/uploads/` (kecuali berkas sistem `.gitkeep`).
+
+---
+---
+
+## Pembersihan Referensi Gambar Statis pada Komponen Front-end (Update Paling Baru)
+
+Menghapus seluruh URL fallback gambar statis Unsplash dari komponen-komponen React agar antarmuka sepenuhnya menampilkan data murni dari database.
+
+### 79. [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx), [Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) & [Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx) (Diubah)
+- **Projects.jsx**: Menghapus array fallback gambar statis `staticPics` dan handler `onError` Unsplash pada kartu proyek & modal detail.
+- **Gallery.jsx**: Menghapus variabel konstanta `FALLBACK_IMAGE` Unsplash dan mengubah fungsi `getFullImgUrl` agar mengembalikan string kosong (`''`) jika data foto belum diunggah.
+- **Home.jsx**: Menghapus array fallback gambar statis `staticPics` dan handler `onError` Unsplash pada seksi *Featured Works*.
+
+---
+---
+
+## Perbaikan Multi-Image Upload Proyek & Sinkronisasi Otomatis Gallery (Update Paling Baru)
+
+Memperbaiki 3 bug kritis pada Cloudflare Worker backend: dukungan upload multi-foto di proyek, sinkronisasi otomatis foto proyek ke galeri, dan error `FALLBACK_IMAGE`.
+
+### 80. [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) & [Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) (Diubah)
+- **Multi-Image Upload (POST /api/projects)**: Mengubah `formData.get('image')` menjadi `formData.getAll('images')` agar menangkap seluruh file foto yang dikirim frontend. Mendukung penyimpanan multi-URL sebagai JSON array di kolom `image_url`.
+- **Multi-URL Support (JSON Body)**: Mendukung input multi-URL yang dipisahkan baris baru atau koma pada mode URL.
+- **Sinkronisasi Foto Proyek → Galeri (POST)**: Setelah proyek berhasil dibuat, setiap URL foto secara otomatis di-insert ke tabel `gallery` sehingga tampil di halaman Galeri.
+- **Sinkronisasi Foto Proyek → Galeri (PUT)**: Saat proyek diperbarui dengan foto baru, entri galeri lama dihapus dan diganti entri baru.
+- **Sinkronisasi Foto Proyek → Galeri (DELETE)**: Saat proyek dihapus, seluruh entri foto terkait juga dihapus dari tabel `gallery`.
+- **Gallery Merge Query (GET /api/gallery)**: Memperbarui endpoint `GET /api/gallery` agar menggabungkan data dari tabel `gallery` DAN tabel `projects` (termasuk parsing JSON array), sehingga seluruh foto proyek otomatis muncul di halaman Galeri.
+- **Fix FALLBACK_IMAGE ReferenceError**: Menghapus referensi variabel `FALLBACK_IMAGE` yang sudah dihapus dari handler `onError` di `Gallery.jsx` yang menyebabkan crash saat gambar gagal dimuat.
+
 

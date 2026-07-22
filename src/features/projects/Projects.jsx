@@ -178,12 +178,7 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
 
     }
 
-    const staticPics = [
-      'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&fit=crop',
-      'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b?w=600&fit=crop',
-      'https://images.unsplash.com/photo-1556906781-9a412961c28c?w=600&fit=crop'
-    ]
-    return [staticPics[index % staticPics.length]]
+    return []
   }
 
   const modalOverlayStyle = {
@@ -355,7 +350,6 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
                     alt={project.title} 
                     onError={(e) => {
                       e.target.onerror = null
-                      e.target.src = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&fit=crop'
                     }}
                   />
                   <span className="gallery-badge">📦 Proyek</span>
@@ -494,7 +488,6 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
                 style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 onError={(e) => {
                   e.target.onerror = null
-                  e.target.src = 'https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=600&fit=crop'
                 }}
               />
 

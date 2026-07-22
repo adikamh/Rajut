@@ -35,20 +35,6 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Seed Initial Gallery
-INSERT OR IGNORE INTO gallery (id, image_url) VALUES 
-  (1, 'https://images.unsplash.com/photo-1578662996442-48f60103fc96'),
-  (2, 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b'),
-  (3, 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea'),
-  (4, 'https://images.unsplash.com/photo-1601762603339-fd61e28b698a'),
-  (5, 'https://images.unsplash.com/photo-1556906781-9a412961c28c');
-
--- Seed Initial Projects
-INSERT OR IGNORE INTO projects (id, title, description, image_url) VALUES 
-  (1, 'Winter Collection 2024', 'A collection of warm winter accessories including scarves, hats, and gloves.', 'https://images.unsplash.com/photo-1578662996442-48f60103fc96'),
-  (2, 'Custom Baby Blankets', 'Personalized baby blankets with custom colors and patterns.', 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b'),
-  (3, 'Home Decor Items', 'Beautiful knitted pieces for home decoration and comfort.', 'https://images.unsplash.com/photo-1556906781-9a412961c28c');
-
 -- Seed Default Admin & User Accounts (Password: admin & user)
 INSERT OR IGNORE INTO users (id, name, address, phone, email, password, role) VALUES
   (1, 'Administrator', 'Kantor Pusat Toko Rajut', '08123456789', 'haikaladika8@gmail.com', '$2b$10$ywdZSKkl4KQN1.W4FUrbOetSJAa2vUBMgF6sUCyY2bMQHeVI8tWsS', 'admin'),

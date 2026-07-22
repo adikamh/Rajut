@@ -89,16 +89,10 @@ export default {
 			if (!env.DB) {
 				// Fallback mockup response if D1 is not yet bound
 				if (path === '/api/projects' && method === 'GET') {
-					return jsonResponse([
-						{ id: 1, title: 'Cardigan Rajut Vintage', description: 'Handmade cardigan wol lembut', image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' },
-						{ id: 2, title: 'Topi Kupluk Winter', description: 'Aksesoris hangat musim dingin', image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b' }
-					]);
+					return jsonResponse([]);
 				}
 				if (path === '/api/gallery' && method === 'GET') {
-					return jsonResponse([
-						{ id: 1, image_url: 'https://images.unsplash.com/photo-1578662996442-48f60103fc96' },
-						{ id: 2, image_url: 'https://images.unsplash.com/photo-1584464491033-06628f3a6b7b' }
-					]);
+					return jsonResponse([]);
 				}
 				return jsonResponse({ message: 'Cloudflare Worker running. Note: D1 database binding (env.DB) is required for full functionality.' });
 			}
@@ -157,8 +151,39 @@ export default {
 
 			// ================= 3. GALLERY ROUTES =================
 			if (path === '/api/gallery' && method === 'GET') {
-				const { results } = await env.DB.prepare('SELECT * FROM gallery ORDER BY id DESC').all();
-				return jsonResponse(results || []);
+				const { results: galleryRows } = await env.DB.prepare('SELECT * FROM gallery ORDER BY id DESC').all();
+				const { results: projectRows } = await env.DB.prepare('SELECT id, image_url, created_at FROM projects').all();
+
+				const existingUrls = new Set((galleryRows || []).map(g => g.image_url));
+				const combined = [...(galleryRows || [])];
+
+				if (projectRows && projectRows.length > 0) {
+					for (const p of projectRows) {
+						if (!p.image_url) continue;
+						let urls = [];
+						try {
+							if (p.image_url.startsWith('[')) {
+								urls = JSON.parse(p.image_url);
+							} else {
+								urls = [p.image_url];
+							}
+						} catch (e) {
+							urls = [p.image_url];
+						}
+						for (const url of urls) {
+							if (url && !existingUrls.has(url)) {
+								existingUrls.add(url);
+								combined.push({
+									id: `proj-${p.id}`,
+									image_url: url,
+									created_at: p.created_at || new Date().toISOString()
+								});
+							}
+						}
+					}
+				}
+
+				return jsonResponse(combined);
 			}
 
 			if (path === '/api/gallery' && method === 'POST') {
@@ -261,38 +286,72 @@ export default {
 
 				let title = '';
 				let description = '';
-				let imageUrl = null;
+				let imageUrls = [];
 				const contentType = request.headers.get('content-type') || '';
 
 				if (contentType.includes('multipart/form-data')) {
 					const formData = await request.formData();
 					title = formData.get('title');
 					description = formData.get('description');
-					const file = formData.get('image');
-					const bodyUrl = formData.get('image_url');
 
-					if (file && typeof file !== 'string' && file.size > 0) {
-						imageUrl = await saveFileToR2(env, file);
-					} else if (bodyUrl) {
-						imageUrl = bodyUrl;
+					// Handle multiple files via 'images' field (matches frontend)
+					const files = formData.getAll('images');
+					for (const file of files) {
+						if (file && typeof file !== 'string' && file.size > 0) {
+							const savedUrl = await saveFileToR2(env, file);
+							if (savedUrl) imageUrls.push(savedUrl);
+						}
+					}
+
+					// Backward compat: also check single 'image' field
+					if (imageUrls.length === 0) {
+						const singleFile = formData.get('image');
+						if (singleFile && typeof singleFile !== 'string' && singleFile.size > 0) {
+							const savedUrl = await saveFileToR2(env, singleFile);
+							if (savedUrl) imageUrls.push(savedUrl);
+						}
+					}
+
+					// Check for URL in form data
+					const bodyUrl = formData.get('image_url');
+					if (imageUrls.length === 0 && bodyUrl) {
+						imageUrls = [bodyUrl];
 					}
 				} else {
 					const body = await request.json();
 					title = body.title;
 					description = body.description;
-					imageUrl = body.image_url || null;
+					const rawUrl = (body.image_url || '').trim();
+					if (rawUrl) {
+						if (rawUrl.includes('\n')) {
+							imageUrls = rawUrl.split('\n').map(u => u.trim()).filter(Boolean);
+						} else if (rawUrl.includes(',') && !rawUrl.startsWith('http')) {
+							imageUrls = rawUrl.split(',').map(u => u.trim()).filter(Boolean);
+						} else {
+							imageUrls = [rawUrl];
+						}
+					}
 				}
 
 				if (!title || !description) {
 					return errorResponse('Title and description are required');
 				}
 
+				const storedImageUrl = imageUrls.length > 1 ? JSON.stringify(imageUrls) : (imageUrls[0] || null);
+
 				const result = await env.DB.prepare(
 					'INSERT INTO projects (title, description, image_url) VALUES (?, ?, ?)'
-				).bind(title, description, imageUrl).run();
+				).bind(title, description, storedImageUrl).run();
 
 				const inserted = await env.DB.prepare('SELECT * FROM projects WHERE id = ?')
 					.bind(result.meta.last_row_id).first();
+
+				// Sync all project photos to gallery table
+				for (const url of imageUrls) {
+					try {
+						await env.DB.prepare('INSERT INTO gallery (image_url) VALUES (?)').bind(url).run();
+					} catch (e) { /* ignore duplicate */ }
+				}
 
 				return jsonResponse(inserted, 201);
 			}
@@ -304,37 +363,77 @@ export default {
 				}
 
 				const id = path.split('/')[3];
+
+				// Get old image URLs for cleanup
+				const existingProject = await env.DB.prepare('SELECT image_url FROM projects WHERE id = ?').bind(id).first();
+				const oldImageUrl = existingProject ? existingProject.image_url : null;
+
 				let title = '';
 				let description = '';
-				let imageUrl = null;
+				let imageUrls = [];
 				const contentType = request.headers.get('content-type') || '';
 
 				if (contentType.includes('multipart/form-data')) {
 					const formData = await request.formData();
 					title = formData.get('title');
 					description = formData.get('description');
-					const file = formData.get('image');
-					const bodyUrl = formData.get('image_url');
 
-					if (file && typeof file !== 'string' && file.size > 0) {
-						imageUrl = await saveFileToR2(env, file);
-					} else if (bodyUrl) {
-						imageUrl = bodyUrl;
+					const files = formData.getAll('images');
+					for (const file of files) {
+						if (file && typeof file !== 'string' && file.size > 0) {
+							const savedUrl = await saveFileToR2(env, file);
+							if (savedUrl) imageUrls.push(savedUrl);
+						}
+					}
+
+					if (imageUrls.length === 0) {
+						const singleFile = formData.get('image');
+						if (singleFile && typeof singleFile !== 'string' && singleFile.size > 0) {
+							const savedUrl = await saveFileToR2(env, singleFile);
+							if (savedUrl) imageUrls.push(savedUrl);
+						}
+					}
+
+					const bodyUrl = formData.get('image_url');
+					if (imageUrls.length === 0 && bodyUrl) {
+						imageUrls = [bodyUrl];
 					}
 				} else {
 					const body = await request.json();
 					title = body.title;
 					description = body.description;
-					imageUrl = body.image_url !== undefined ? body.image_url : null;
+					const rawUrl = (body.image_url || '').trim();
+					if (rawUrl) {
+						if (rawUrl.includes('\n')) {
+							imageUrls = rawUrl.split('\n').map(u => u.trim()).filter(Boolean);
+						} else if (rawUrl.includes(',') && !rawUrl.startsWith('http')) {
+							imageUrls = rawUrl.split(',').map(u => u.trim()).filter(Boolean);
+						} else {
+							imageUrls = [rawUrl];
+						}
+					}
 				}
 
 				if (!title || !description) {
 					return errorResponse('Title and description are required');
 				}
 
-				if (imageUrl !== null && imageUrl !== undefined) {
+				if (imageUrls.length > 0) {
+					const storedImageUrl = imageUrls.length > 1 ? JSON.stringify(imageUrls) : imageUrls[0];
 					await env.DB.prepare('UPDATE projects SET title = ?, description = ?, image_url = ? WHERE id = ?')
-						.bind(title, description, imageUrl, id).run();
+						.bind(title, description, storedImageUrl, id).run();
+
+					// Clean up old gallery entries and add new ones
+					if (oldImageUrl) {
+						let oldUrls = [];
+						try { oldUrls = oldImageUrl.startsWith('[') ? JSON.parse(oldImageUrl) : [oldImageUrl]; } catch (e) { oldUrls = [oldImageUrl]; }
+						for (const oldUrl of oldUrls) {
+							try { await env.DB.prepare('DELETE FROM gallery WHERE image_url = ?').bind(oldUrl).run(); } catch (e) {}
+						}
+					}
+					for (const url of imageUrls) {
+						try { await env.DB.prepare('INSERT INTO gallery (image_url) VALUES (?)').bind(url).run(); } catch (e) {}
+					}
 				} else {
 					await env.DB.prepare('UPDATE projects SET title = ?, description = ? WHERE id = ?')
 						.bind(title, description, id).run();
@@ -353,6 +452,17 @@ export default {
 				}
 
 				const id = path.split('/')[3];
+
+				// Clean up gallery entries for this project's photos
+				const project = await env.DB.prepare('SELECT image_url FROM projects WHERE id = ?').bind(id).first();
+				if (project && project.image_url) {
+					let urls = [];
+					try { urls = project.image_url.startsWith('[') ? JSON.parse(project.image_url) : [project.image_url]; } catch (e) { urls = [project.image_url]; }
+					for (const url of urls) {
+						try { await env.DB.prepare('DELETE FROM gallery WHERE image_url = ?').bind(url).run(); } catch (e) {}
+					}
+				}
+
 				await env.DB.prepare('DELETE FROM projects WHERE id = ?').bind(id).run();
 				return jsonResponse({ message: 'Project deleted successfully' });
 			}
