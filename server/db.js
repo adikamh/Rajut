@@ -20,7 +20,7 @@ const memoryDb = {
       address: 'Kantor Pusat Toko Rajut',
       phone: '08123456789',
       email: 'haikaladika8@gmail.com',
-      password: '$2b$10$FbEI9WRMPq3a.9fgon5HeOPAup/y3TtCXJqIk7022XrqVV19qZ43i', // password: Haikal552005
+      password: '$2b$10$wN831utm2G1GN74CHuXxwuKu1xSND4Mz.DflIoo0wcWg.wBu4DZ3.', // password: Haikal552005
       role: 'admin',
       created_at: new Date().toISOString()
     },
