@@ -1,14 +1,30 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Button from '../../components/ui/Button'
 import { uploadGalleryImage, updateGalleryImage, deleteGalleryImage } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 
 export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpdateImage, onDeleteImage, loading, user }) {
   const { showToast } = useNotification()
-  const [lightboxImage, setLightboxImage] = useState(null)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
   
   // Popup Success Modal State (auto dismiss)
   const [uploadSuccessModal, setUploadSuccessModal] = useState(null)
+
+  // Keyboard navigation for Lightbox modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (lightboxIndex === null || galleryItems.length === 0) return
+      if (e.key === 'Escape') {
+        setLightboxIndex(null)
+      } else if (e.key === 'ArrowRight') {
+        setLightboxIndex((prev) => (prev !== null ? (prev + 1) % galleryItems.length : null))
+      } else if (e.key === 'ArrowLeft') {
+        setLightboxIndex((prev) => (prev !== null ? (prev - 1 + galleryItems.length) % galleryItems.length : null))
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [lightboxIndex, galleryItems.length])
 
   // Creation States
   const [uploadMode, setUploadMode] = useState('file')
@@ -296,7 +312,12 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
         <div className="gallery-grid">
           {galleryItems.map((item, index) => {
             return (
-              <div key={item.id || index} className="gallery-card">
+              <div 
+                key={item.id || index} 
+                className="gallery-card"
+                onClick={() => setLightboxIndex(index)}
+                style={{ cursor: 'pointer' }}
+              >
                 <span className="gallery-badge">🧶 Rajutan</span>
 
                 {/* Admin Actions Glass Pills */}
@@ -306,9 +327,10 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                       type="button"
                       className="admin-icon-btn edit"
                       title="Edit Foto"
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.stopPropagation()
                         setEditingItem(item)
-                        if (item.image_url.startsWith('http')) {
+                        if (item.image_url && item.image_url.startsWith('http')) {
                           setEditMode('url')
                           setEditUrlInput(item.image_url)
                         } else {
@@ -322,18 +344,17 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                       type="button"
                       className="admin-icon-btn delete"
                       title="Hapus Foto"
-                      onClick={() => setDeleteConfirmId(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteConfirmId(item.id)
+                      }}
                     >
                       🗑️
                     </button>
                   </div>
                 )}
 
-                <div 
-                  className="gallery-image-container"
-                  onClick={() => setLightboxImage(getFullImgUrl(item.image_url))}
-                  style={{ cursor: 'pointer' }}
-                >
+                <div className="gallery-image-container">
                   <img
                     src={getFullImgUrl(item.image_url)}
                     alt={`Rajutan ${item.id || index + 1}`}
@@ -354,28 +375,73 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       </div>
 
       {/* Lightbox Modal */}
-      {lightboxImage && (
-        <div className="lightbox-modal" onClick={() => setLightboxImage(null)}>
+      {lightboxIndex !== null && galleryItems[lightboxIndex] && (
+        <div className="lightbox-modal" onClick={() => setLightboxIndex(null)}>
+          {/* Previous Button */}
+          {galleryItems.length > 1 && (
+            <button
+              type="button"
+              className="lightbox-nav-btn prev"
+              onClick={(e) => {
+                e.stopPropagation()
+                setLightboxIndex((prev) => (prev - 1 + galleryItems.length) % galleryItems.length)
+              }}
+              title="Foto Sebelumnya (Panah Kiri)"
+            >
+              ‹
+            </button>
+          )}
+
           <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <button
+              type="button"
               className="lightbox-close"
-              onClick={() => setLightboxImage(null)}
-              aria-label="Close Lightbox"
+              onClick={() => setLightboxIndex(null)}
+              aria-label="Tutup Modal"
             >
-              &times;
+              ✕
             </button>
+
             <img
-              src={lightboxImage}
-              alt="Karya Rajutan Fullsize"
+              src={getFullImgUrl(galleryItems[lightboxIndex].image_url)}
+              alt={`Rajutan ${galleryItems[lightboxIndex].id || lightboxIndex + 1}`}
+              onError={(e) => {
+                e.target.onerror = null
+                e.target.src = 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop'
+              }}
               style={{
-                maxHeight: '80vh',
+                maxHeight: '76vh',
                 maxWidth: '100%',
                 borderRadius: '1.25rem',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
                 objectFit: 'contain'
               }}
             />
+
+            <div style={{ marginTop: '12px', textAlign: 'center', color: '#ffffff' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#fdba74' }}>
+                🧶 Karya Rajutan Toko Rajut #{lightboxIndex + 1}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '3px' }}>
+                Foto {lightboxIndex + 1} dari {galleryItems.length} • Tekan Esc atau klik di luar untuk menutup
+              </div>
+            </div>
           </div>
+
+          {/* Next Button */}
+          {galleryItems.length > 1 && (
+            <button
+              type="button"
+              className="lightbox-nav-btn next"
+              onClick={(e) => {
+                e.stopPropagation()
+                setLightboxIndex((prev) => (prev + 1) % galleryItems.length)
+              }}
+              title="Foto Selanjutnya (Panah Kanan)"
+            >
+              ›
+            </button>
+          )}
         </div>
       )}
 

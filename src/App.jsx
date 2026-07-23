@@ -121,27 +121,7 @@ export default function App() {
     }
   }, [])
 
-  const navigateNext = () => {
-    setActiveSection((prev) => {
-      const currentIndex = SECTIONS.indexOf(prev)
-      const nextIndex = (currentIndex + 1) % SECTIONS.length
-      const nextSection = SECTIONS[nextIndex]
-      window.location.hash = nextSection
-      return nextSection
-    })
-  }
-
-  const navigatePrev = () => {
-    setActiveSection((prev) => {
-      const currentIndex = SECTIONS.indexOf(prev)
-      const prevIndex = currentIndex === 0 ? SECTIONS.length - 1 : currentIndex - 1
-      const prevSection = SECTIONS[prevIndex]
-      window.location.hash = prevSection
-      return prevSection
-    })
-  }
-
-  useSwipe(navigateNext, navigatePrev)
+  // Global swipe listener removed to prevent accidental page jumps & auto-scrolling during touch scrolling on mobile devices
 
   const handleAddGalleryItem = (newItem) => {
     setGallery((prev) => [newItem, ...prev])

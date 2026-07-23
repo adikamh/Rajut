@@ -186,7 +186,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 <input
                   type="email"
                   id="loginEmail"
-                  placeholder="haikaladika8@gmail.com"
+                  placeholder="Email"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
@@ -202,7 +202,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
                     id="loginPassword"
-                    placeholder="••••••••"
+                    placeholder="Password"
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
@@ -331,7 +331,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 <input
                   type="email"
                   id="regEmail"
-                  placeholder="nama@email.com"
+                  placeholder="Email"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   required
@@ -347,7 +347,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   <input
                     type={showRegPassword ? 'text' : 'password'}
                     id="regPassword"
-                    placeholder="Minimal 4 karakter"
+                    placeholder="Password"
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     required
