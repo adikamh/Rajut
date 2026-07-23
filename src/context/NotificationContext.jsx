@@ -72,7 +72,7 @@ function ToastContainer({ toast, onClose }) {
   }
 
   return (
-    <div style={containerStyle}>
+    <div className="toast-container" style={containerStyle}>
       {toast.type === 'loading' && (
         <div style={{
           width: '20px',

@@ -91,10 +91,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   return (
     <section id="auth" className={`section ${isActive ? 'active' : ''}`} style={{ display: isActive ? 'flex' : 'none', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(var(--vh, 1vh) * 80)', padding: '2rem 1rem' }}>
       <div className="container" style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
-        <div style={{
+        <div className="auth-card" style={{
           background: 'rgba(255, 255, 255, 0.98)',
           backdropFilter: 'blur(16px)',
-          padding: '2.5rem',
           borderRadius: '1.5rem',
           boxShadow: '0 25px 50px -12px rgba(210, 105, 30, 0.12)',
           maxWidth: '460px',
