@@ -696,4 +696,44 @@ Memperbaiki 3 bug kritis pada Cloudflare Worker backend: dukungan upload multi-f
 - **Gallery Merge Query (GET /api/gallery)**: Memperbarui endpoint `GET /api/gallery` agar menggabungkan data dari tabel `gallery` DAN tabel `projects` (termasuk parsing JSON array), sehingga seluruh foto proyek otomatis muncul di halaman Galeri.
 - **Fix FALLBACK_IMAGE ReferenceError**: Menghapus referensi variabel `FALLBACK_IMAGE` yang sudah dihapus dari handler `onError` di `Gallery.jsx` yang menyebabkan crash saat gambar gagal dimuat.
 
+---
+---
+
+## Perbaikan Modal Lightbox Gambar pada Halaman Galeri (Update Paling Baru)
+
+Memperbaiki dan meningkatkan tampilan serta fungsi modal pop-up gambar (Lightbox Modal) saat kartu foto pada halaman Galeri diklik/ditekan oleh pengguna.
+
+### 81. [src/features/gallery/Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) & [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
+- **Fix Modal Styling (.lightbox-modal)**: Menambahkan aturan CSS lengkap untuk `.lightbox-modal`, `.lightbox-content`, `.lightbox-close`, dan `.lightbox-nav-btn` dengan backdrop blur fixed overlay (`backdrop-filter: blur(12px)`), posisi di tengah layar (centered), tombol penutup melayang interaktif, dan animasi masuk yang halus.
+- **Card Click Event Handler**: Memasang listener `onClick` langsung pada kartu galeri (`.gallery-card`), memastikan modal gambar muncul saat bagian mana pun dari foto/kartu ditekan.
+- **Multi-Photo Carousel Navigation**: Menambahkan navigasi tombol panah Kiri (`‹`) dan Kanan (`›`) di dalam modal lightbox agar pengguna dapat menjelajahi foto sebelumnya/selanjutnya tanpa harus menutup modal.
+- **Keyboard Shortcuts (Esc & Panah)**: Menambahkan hook `useEffect` untuk menangani tombol keyboard (`Escape` untuk menutup modal, `ArrowLeft` dan `ArrowRight` me-navigate foto).
+- **Informasi Counter & Title**: Menambahkan label penjelas judul karya rajutan dan counter indeks foto (misal: *Foto 1 dari 12*) di bawah tampilan gambar fullsize.
+
+---
+---
+
+## Perbaikan Masalah Auto-Scroll & Perpindahan Halaman Otomatis pada Perangkat Mobile (Update Paling Baru)
+
+Memperbaiki bug di mana pengguna mobile (HP) mengalami perpindahan halaman/seksi secara otomatis dan layar scroll ke atas sendiri saat sedang mengusap (scrolling) layar HP.
+
+### 82. [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) & [src/hooks/useSwipe.js](file:///c:/laragon/www/Rajut/src/hooks/useSwipe.js) (Diubah)
+- **Penyebab Masalah (Root Cause)**: Hook `useSwipe` sebelumnya memasang event listener sentuhan global (`window.addEventListener('touchstart')`) tanpa memperhitungkan pergerakan vertikal. Saat pengguna melakukan scroll layar ke atas/bawah pada HP, pergeseran jempol secara miring memicu deteksi gestur swipe horizontal, yang memanggil `navigateNext`/`navigatePrev`, mereset hash URL, serta memaksa halaman berpindah dan scroll ke paling atas.
+- **Eliminasi Global Swipe Navigasi ([App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx))**: Menghapus pemanggilan global `useSwipe(navigateNext, navigatePrev)` dari aplikasi utama agar perpindahan halaman utama hanya terjadi saat pengguna secara eksplisit mengklik menu navigasi.
+- **Refactoring Safe Hook ([useSwipe.js](file:///c:/laragon/www/Rajut/src/hooks/useSwipe.js))**: Memperbarui hook `useSwipe` agar memerlukan parameter `targetRef` spesifik dan menerapkan rasio filter pergerakan miring (`Math.abs(deltaX) > Math.abs(deltaY) * 2`), menjamin gestur scroll vertikal pengunjang HP tidak akan pernah mengganggu navigasi.
+
+---
+---
+
+## Pembaruan Textfield Input Placeholder Halaman Auth/Login (Update Paling Baru)
+
+Mengubah bayangan teks petunjuk (*placeholder*) pada form input halaman Masuk & Daftar agar lebih bersih, umum, dan tidak menampilkan contoh alamat email asli.
+
+### 83. [src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx) (Diubah)
+- **Login Placeholder**: Mengubah `placeholder="haikaladika8@gmail.com"` menjadi `placeholder="Email"` dan `placeholder="••••••••"` menjadi `placeholder="Password"`.
+- **Register Placeholder**: Mengubah `placeholder="nama@email.com"` menjadi `placeholder="Email"` dan `placeholder="Minimal 4 karakter"` menjadi `placeholder="Password"`.
+
+
+
+
 
