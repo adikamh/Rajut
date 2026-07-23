@@ -74,7 +74,6 @@ export default function Contact({ isActive, user }) {
           <div className="contact-form" style={{
             background: 'rgba(255, 255, 255, 0.95)',
             backdropFilter: 'blur(12px)',
-            padding: '2.5rem',
             borderRadius: '1.5rem',
             boxShadow: '0 20px 40px -15px rgba(0,0,0,0.06)',
             border: '1px solid rgba(226, 232, 240, 0.8)'

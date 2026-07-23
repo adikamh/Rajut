@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
 export default function Header({ activeSection, onSectionChange, user, onLogout }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -10,6 +10,18 @@ export default function Header({ activeSection, onSectionChange, user, onLogout 
     { id: 'about', label: 'About' },
     { id: 'contact', label: 'Contact' }
   ]
+
+  // Prevent background scrolling when mobile menu is open
+  useEffect(() => {
+    if (mobileMenuOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [mobileMenuOpen])
 
   const handleLinkClick = (e, id) => {
     e.preventDefault()
@@ -87,6 +99,14 @@ export default function Header({ activeSection, onSectionChange, user, onLogout 
           </div>
         </div>
       </header>
+
+      {/* Mobile Menu Backdrop Overlay */}
+      {mobileMenuOpen && (
+        <div
+          className="mobile-menu-backdrop"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
 
       {/* Mobile Menu */}
       <div className={`mobile-menu ${mobileMenuOpen ? 'show' : ''}`} id="mobileMenu">
