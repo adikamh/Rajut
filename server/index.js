@@ -10,7 +10,7 @@ import { google } from 'googleapis'
 import { Readable } from 'stream'
 import convert from 'heic-convert'
 
-import db from './db.js' // db is now the Supabase client
+import db from './db.js' // db client for Cloudflare D1
 import { sendContactEmail } from './mailer.js'
 import { authenticateToken, requireAdmin } from './authMiddleware.js'
 
@@ -308,7 +308,7 @@ app.post('/api/auth/register', async (req, res) => {
       .eq('email', email)
 
     if (selectErr) {
-      console.error('Supabase select check error:', selectErr)
+      console.error('Cloudflare D1 select check error:', selectErr)
       return res.status(500).json({ error: 'Gagal memeriksa ketersediaan email.' })
     }
 
@@ -332,7 +332,7 @@ app.post('/api/auth/register', async (req, res) => {
       .select()
 
     if (insertErr) {
-      console.error('Supabase user insert error:', insertErr)
+      console.error('Cloudflare D1 user insert error:', insertErr)
       return res.status(500).json({ error: 'Gagal menyimpan data pengguna baru.' })
     }
 
@@ -364,7 +364,7 @@ app.post('/api/auth/login', async (req, res) => {
       .eq('email', email)
 
     if (selectErr) {
-      console.error('Supabase login check error:', selectErr)
+      console.error('Cloudflare D1 login check error:', selectErr)
       return res.status(500).json({ error: 'Gagal melakukan verifikasi akun.' })
     }
 
@@ -391,7 +391,44 @@ app.post('/api/auth/login', async (req, res) => {
   }
 })
 
-// ================= DATA ROUTES =================
+// Helper to scan and fetch all image files from Google Drive Folder
+async function fetchGoogleDriveFolderImages() {
+  const images = []
+  try {
+    let rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || ''
+    if (rawFolderId.includes('?')) rawFolderId = rawFolderId.split('?')[0]
+    const folderId = rawFolderId.trim()
+
+    if (!driveAuthClient || !folderId || folderId.includes('MASUKKAN_FOLDER_ID')) {
+      return images
+    }
+
+    const res = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id, name, mimeType, createdTime)',
+      pageSize: 100,
+      orderBy: 'createdTime desc'
+    })
+
+    if (res.data && res.data.files) {
+      const imageExtRegex = /\.(jpg|jpeg|png|webp|heic|heif|gif|bmp|svg|tiff|avif)$/i
+      for (const file of res.data.files) {
+        const isImageMime = file.mimeType && file.mimeType.startsWith('image/')
+        const isImageExt = file.name && imageExtRegex.test(file.name)
+        if (isImageMime || isImageExt) {
+          images.push({
+            id: `drive-${file.id}`,
+            image_url: `/api/drive-image/${file.id}`,
+            created_at: file.createdTime || new Date().toISOString()
+          })
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('Google Drive Folder Auto-Scan warning:', err.message)
+  }
+  return images
+}
 
 // 1. Gallery
 app.get('/api/gallery', async (req, res) => {
@@ -403,12 +440,22 @@ app.get('/api/gallery', async (req, res) => {
 
     if (galErr) throw galErr
 
+    const existingUrls = new Set((galleryRows || []).map(g => g.image_url))
+    const combined = [...(galleryRows || [])]
+
+    // 1. Scan and automatically include photos from Google Drive folder
+    const driveImages = await fetchGoogleDriveFolderImages()
+    driveImages.forEach(dImg => {
+      if (!existingUrls.has(dImg.image_url)) {
+        existingUrls.add(dImg.image_url)
+        combined.unshift(dImg)
+      }
+    })
+
+    // 2. Include project images
     const { data: projectRows } = await db
       .from('projects')
       .select('id, image_url, created_at')
-
-    const existingUrls = new Set((galleryRows || []).map(g => g.image_url))
-    const combined = [...(galleryRows || [])]
 
     if (projectRows && projectRows.length > 0) {
       projectRows.forEach(p => {
@@ -436,17 +483,8 @@ app.post('/api/gallery', authenticateToken, requireAdmin, memoryUpload.single('i
     let imageUrl = ''
 
     if (req.file) {
-      try {
-        const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname)
-        imageUrl = driveResult.directUrl
-      } catch (driveErr) {
-        console.error('Google Drive upload error, falling back to local disk:', driveErr.message)
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        const localFilename = uniqueSuffix + path.extname(req.file.originalname)
-        const localPath = path.join(uploadsDir, localFilename)
-        fs.writeFileSync(localPath, req.file.buffer)
-        imageUrl = `/uploads/${localFilename}`
-      }
+      const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname)
+      imageUrl = driveResult.directUrl
     } else if (req.body.image_url) {
       imageUrl = req.body.image_url
     } else {
@@ -476,17 +514,8 @@ app.put('/api/gallery/:id', authenticateToken, requireAdmin, memoryUpload.single
     let imageUrl = ''
 
     if (req.file) {
-      try {
-        const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname)
-        imageUrl = driveResult.directUrl
-      } catch (driveErr) {
-        console.error('Google Drive upload error, falling back to local disk:', driveErr.message)
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-        const localFilename = uniqueSuffix + path.extname(req.file.originalname)
-        const localPath = path.join(uploadsDir, localFilename)
-        fs.writeFileSync(localPath, req.file.buffer)
-        imageUrl = `/uploads/${localFilename}`
-      }
+      const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname)
+      imageUrl = driveResult.directUrl
     } else if (req.body.image_url) {
       imageUrl = req.body.image_url
     } else {
@@ -535,6 +564,94 @@ app.delete('/api/gallery/:id', authenticateToken, requireAdmin, async (req, res)
 })
 
 
+// About Section Content API
+app.get('/api/about', async (req, res) => {
+  try {
+    const { data, error } = await db.from('about_content').select('*').limit(1)
+    if (error) throw error
+    if (data && data.length > 0) {
+      return res.json(data[0])
+    }
+    return res.json({
+      id: 1,
+      title: 'Passion & Dedikasi Dalam Setiap Helaian Benang',
+      subtitle: 'Cerita di balik kehangatan dan keindahan seni rajut buatan tangan kami.',
+      paragraph1: 'Selamat datang di Toko Rajut. Kami percaya bahwa setiap produk rajutan memiliki jiwa dan cerita tersendiri. Kami mengkhususkan diri dalam pembuatan karya rajut tangan eksklusif seperti syal, topi, selimut bayi, hingga dekorasi rumah.',
+      paragraph2: 'Setiap pasang tangan perajin kami merajut dengan teknik tradisional yang dipadukan dengan sentuhan estetika modern untuk menghadirkan produk berkualitas tinggi yang hangat dan penuh makna.',
+      image_url: '/about-lion.jpg',
+      badge_text: '⭐ Terpercaya Sejak 2024'
+    })
+  } catch (error) {
+    console.error('Error fetching about content:', error)
+    res.status(500).json({ error: 'Failed to fetch about content' })
+  }
+})
+
+app.put('/api/about', authenticateToken, requireAdmin, memoryUpload.single('image_file'), async (req, res) => {
+  try {
+    const { title, subtitle, paragraph1, paragraph2, badge_text, image_url } = req.body
+    let finalImageUrl = image_url
+
+    if (req.file) {
+      const isDriveConfigured = !!(
+        process.env.GOOGLE_CLIENT_ID &&
+        process.env.GOOGLE_CLIENT_SECRET &&
+        process.env.GOOGLE_REFRESH_TOKEN
+      )
+
+      if (!isDriveConfigured) {
+        return res.status(500).json({
+          error: 'Gagal mengunggah gambar: Kredensial Google Drive API belum dikonfigurasi!'
+        })
+      }
+
+      const driveRes = await uploadFileToDrive(req.file)
+      if (!driveRes.success) {
+        return res.status(500).json({
+          error: `Gagal mengunggah gambar ke Google Drive: ${driveRes.error}`
+        })
+      }
+
+      finalImageUrl = driveRes.fileUrl
+    }
+
+    const { data: existing } = await db.from('about_content').select('*').limit(1)
+
+    let updatedData
+    const updatePayload = {
+      title: title || 'Passion & Dedikasi Dalam Setiap Helaian Benang',
+      subtitle: subtitle || 'Cerita di balik kehangatan dan keindahan seni rajut buatan tangan kami.',
+      paragraph1: paragraph1 || '',
+      paragraph2: paragraph2 || '',
+      badge_text: badge_text || '⭐ Terpercaya Sejak 2024'
+    }
+
+    if (finalImageUrl && finalImageUrl.trim() !== '') {
+      updatePayload.image_url = finalImageUrl
+    }
+
+    if (existing && existing.length > 0) {
+      const { data, error } = await db.from('about_content').update(updatePayload).eq('id', existing[0].id)
+      if (error) throw error
+      updatedData = data && data.length > 0 ? data[0] : { ...existing[0], ...updatePayload }
+    } else {
+      updatePayload.id = 1
+      if (!updatePayload.image_url) updatePayload.image_url = '/about-lion.jpg'
+      const { data, error } = await db.from('about_content').insert([updatePayload])
+      if (error) throw error
+      updatedData = data && data.length > 0 ? data[0] : updatePayload
+    }
+
+    res.json({
+      message: 'Konten Tentang Kami berhasil diperbarui!',
+      data: updatedData
+    })
+  } catch (error) {
+    console.error('Error updating about content:', error)
+    res.status(500).json({ error: error.message || 'Failed to update about content' })
+  }
+})
+
 // 2. Projects
 app.get('/api/projects', async (req, res) => {
   try {
@@ -563,17 +680,8 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
     // Process multiple uploaded file buffers
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        try {
-          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
-          imageUrls.push(driveResult.directUrl)
-        } catch (driveErr) {
-          console.error('Google Drive upload error, falling back to local disk:', driveErr.message)
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-          const localFilename = uniqueSuffix + path.extname(file.originalname)
-          const localPath = path.join(uploadsDir, localFilename)
-          fs.writeFileSync(localPath, file.buffer)
-          imageUrls.push(`/uploads/${localFilename}`)
-        }
+        const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
+        imageUrls.push(driveResult.directUrl)
       }
     } else if (req.body.image_url) {
       // Support multiple comma or newline separated URLs or single URL
@@ -627,17 +735,8 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
 
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        try {
-          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
-          imageUrls.push(driveResult.directUrl)
-        } catch (driveErr) {
-          console.error('Google Drive upload error, falling back to local disk:', driveErr.message)
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9)
-          const localFilename = uniqueSuffix + path.extname(file.originalname)
-          const localPath = path.join(uploadsDir, localFilename)
-          fs.writeFileSync(localPath, file.buffer)
-          imageUrls.push(`/uploads/${localFilename}`)
-        }
+        const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
+        imageUrls.push(driveResult.directUrl)
       }
     } else if (req.body.image_url) {
       const rawUrl = req.body.image_url.trim()
@@ -759,7 +858,7 @@ app.post('/api/contact', async (req, res) => {
     try {
       await sendContactEmail({ name, email, message })
     } catch (emailError) {
-      console.error('Email failed to send but message was saved to Supabase:', emailError)
+      console.error('Email failed to send but message was saved to Cloudflare D1:', emailError)
     }
 
     res.status(201).json({
@@ -773,7 +872,7 @@ app.post('/api/contact', async (req, res) => {
 })
 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     console.log(`Express API Server running at http://localhost:${PORT}`)
   })
 }

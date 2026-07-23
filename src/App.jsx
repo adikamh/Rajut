@@ -7,11 +7,14 @@ import Projects from './features/projects/Projects'
 import About from './features/about/About'
 import Contact from './features/contact/Contact'
 import Auth from './features/auth/Auth'
+import Privacy from './features/privacy/Privacy'
 import useSwipe from './hooks/useSwipe'
 import { fetchGallery, fetchProjects } from './services/api'
 import { useNotification } from './context/NotificationContext'
 
-const SECTIONS = ['home', 'gallery', 'projects', 'about', 'contact', 'auth']
+import { getCookie, eraseCookie } from './utils/cookie'
+
+const SECTIONS = ['home', 'gallery', 'projects', 'about', 'contact', 'auth', 'privacy']
 
 export default function App() {
   const { showToast } = useNotification()
@@ -22,8 +25,8 @@ export default function App() {
 
   const [user, setUser] = useState(() => {
     try {
-      const savedUser = localStorage.getItem('user')
-      return savedUser ? JSON.parse(savedUser) : null
+      const savedUser = localStorage.getItem('user') || getCookie('rajut_user')
+      return savedUser ? (typeof savedUser === 'string' ? JSON.parse(savedUser) : savedUser) : null
     } catch {
       return null
     }
@@ -43,8 +46,8 @@ export default function App() {
       setError(null)
     } catch (err) {
       console.error('Error loading data from API:', err)
-      setError('Gagal memuat data dari database. Pastikan server API dan MySQL Laragon aktif.')
-      showToast('Gagal memuat data dari database!', 'error')
+      setError('Gagal memuat data dari database. Pastikan server API dan Cloudflare D1 terhubung.')
+      showToast('Gagal memuat data dari Cloudflare D1 & Google Drive!', 'error')
     } finally {
       setLoading(false)
     }
@@ -178,6 +181,8 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    eraseCookie('rajut_token')
+    eraseCookie('rajut_user')
     setUser(null)
     changeSection('home')
     showToast('Anda telah berhasil keluar.', 'success')
@@ -211,7 +216,8 @@ export default function App() {
         <Home
           isActive={activeSection === 'home'}
           onSectionChange={changeSection}
-          projects={projects.slice(0, 4)}
+          projects={projects}
+          gallery={gallery}
           loading={loading}
         />
         <Gallery
@@ -232,11 +238,15 @@ export default function App() {
           loading={loading}
           user={user}
         />
-        <About isActive={activeSection === 'about'} />
+        <About isActive={activeSection === 'about'} user={user} />
         <Contact isActive={activeSection === 'contact'} user={user} />
         <Auth
           isActive={activeSection === 'auth'}
           onLoginSuccess={handleLoginSuccess}
+          onSectionChange={changeSection}
+        />
+        <Privacy
+          isActive={activeSection === 'privacy'}
           onSectionChange={changeSection}
         />
       </main>

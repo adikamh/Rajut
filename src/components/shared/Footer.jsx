@@ -6,7 +6,8 @@ export default function Footer({ onSectionChange }) {
     { id: 'gallery', label: 'Gallery' },
     { id: 'projects', label: 'Projects' },
     { id: 'about', label: 'About' },
-    { id: 'contact', label: 'Contact' }
+    { id: 'contact', label: 'Contact' },
+    { id: 'privacy', label: 'Kebijakan Privasi' }
   ]
 
   const handleLinkClick = (e, id) => {
@@ -19,8 +20,9 @@ export default function Footer({ onSectionChange }) {
       <div className="container">
         <div className="footer-content">
           <div className="footer-section">
-            <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>🧶</span> Toko Rajut
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <img src="/logo.png" alt="Toko Rajut Logo" style={{ width: '32px', height: '32px', borderRadius: '8px', objectFit: 'cover', border: '1px solid rgba(255,255,255,0.2)' }} />
+              <span>Toko Rajut</span>
             </h3>
             <p>Seni rajut tangan eksklusif buatan Indonesia yang dibuat dengan benang berkualitas dan penuh kasih sayang.</p>
           </div>
@@ -46,8 +48,15 @@ export default function Footer({ onSectionChange }) {
             </div>
           </div>
         </div>
-        <div className="footer-bottom">
+        <div className="footer-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
           <p>&copy; 2024 Toko Rajut. All rights reserved.</p>
+          <a
+            href="#privacy"
+            onClick={(e) => handleLinkClick(e, 'privacy')}
+            style={{ color: '#94a3b8', fontSize: '0.85rem', textDecoration: 'underline', fontWeight: '500' }}
+          >
+            🔒 Kebijakan Privasi & Ketentuan Layanan (Google OAuth)
+          </a>
         </div>
       </div>
     </footer>
