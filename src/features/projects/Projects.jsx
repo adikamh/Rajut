@@ -344,7 +344,7 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
                 }}
                 style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column' }}
               >
-                <div className="gallery-card-img-wrapper" style={{ paddingTop: '65%', position: 'relative' }}>
+                <div className="gallery-image-container" style={{ paddingTop: '75%' }}>
                   <img 
                     src={coverUrl} 
                     alt={project.title} 
@@ -374,10 +374,10 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
                     </span>
                   )}
 
-                  <div className="gallery-card-overlay">
-                    <button type="button" className="gallery-zoom-btn">
+                  <div className="gallery-overlay">
+                    <span className="gallery-zoom-icon">
                       📄 Detail ({urls.length} Foto)
-                    </button>
+                    </span>
                   </div>
                 </div>
 
