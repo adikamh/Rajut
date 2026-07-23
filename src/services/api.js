@@ -1,9 +1,31 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://my-backend-api.rajut-api.workers.dev/api'
+import { getCookie, eraseCookie } from '../utils/cookie'
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
 
 function getAuthHeaders() {
-  const token = localStorage.getItem('token')
+  const token = localStorage.getItem('token') || getCookie('rajut_token')
   return token ? { 'Authorization': `Bearer ${token}` } : {}
+}
+
+async function handleResponseError(response, defaultMsg = 'Terjadi kesalahan') {
+  let errMsg = defaultMsg
+  try {
+    const err = await response.json()
+    errMsg = err.error || defaultMsg
+  } catch (e) {
+    // ignore json parse error
+  }
+
+  if (response.status === 401 || response.status === 403 || String(errMsg).toLowerCase().includes('token')) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    eraseCookie('rajut_token')
+    eraseCookie('rajut_user')
+    window.dispatchEvent(new Event('auth_changed'))
+    throw new Error('Sesi login Anda telah berakhir atau token tidak valid. Silakan login kembali sebagai Admin.')
+  }
+
+  throw new Error(errMsg)
 }
 
 export async function loginUser(email, password) {
@@ -16,8 +38,7 @@ export async function loginUser(email, password) {
   })
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Gagal login')
+    await handleResponseError(response, 'Gagal login')
   }
   return response.json()
 }
@@ -32,8 +53,7 @@ export async function registerUser(userData) {
   })
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Gagal daftar')
+    await handleResponseError(response, 'Gagal daftar')
   }
   return response.json()
 }
@@ -70,8 +90,7 @@ export async function uploadGalleryImage(imageFileOrUrl, isFile = false) {
   }
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to upload image')
+    await handleResponseError(response, 'Gagal mengunggah foto ke Galeri')
   }
   return response.json()
 }
@@ -116,8 +135,7 @@ export async function createProject(title, description, imageFilesOrUrl, isFile 
   }
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to create project')
+    await handleResponseError(response, 'Gagal membuat proyek baru')
   }
   return response.json()
 }
@@ -132,8 +150,7 @@ export async function submitContact(name, email, message) {
   })
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to submit contact message')
+    await handleResponseError(response, 'Gagal mengirim pesan')
   }
   return response.json()
 }
@@ -162,8 +179,7 @@ export async function updateGalleryImage(id, imageFileOrUrl, isFile = false) {
   }
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to update image')
+    await handleResponseError(response, 'Gagal memperbarui foto di Galeri')
   }
   return response.json()
 }
@@ -177,8 +193,7 @@ export async function deleteGalleryImage(id) {
   })
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to delete gallery image')
+    await handleResponseError(response, 'Gagal menghapus foto dari Galeri')
   }
   return response.json()
 }
@@ -215,8 +230,7 @@ export async function updateProject(id, title, description, imageFilesOrUrl, isF
   }
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to update project')
+    await handleResponseError(response, 'Gagal memperbarui proyek')
   }
   return response.json()
 }
@@ -230,8 +244,42 @@ export async function deleteProject(id) {
   })
 
   if (!response.ok) {
-    const err = await response.json()
-    throw new Error(err.error || 'Failed to delete project')
+    await handleResponseError(response, 'Gagal menghapus proyek')
+  }
+  return response.json()
+}
+
+export async function fetchAboutContent() {
+  const response = await fetch(`${API_BASE_URL}/about`)
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal mengambil data tentang kami')
+  }
+  return response.json()
+}
+
+export async function updateAboutContent(dataPayload, isFile = false) {
+  let response
+  if (isFile && dataPayload instanceof FormData) {
+    response = await fetch(`${API_BASE_URL}/about`, {
+      method: 'PUT',
+      headers: {
+        ...getAuthHeaders()
+      },
+      body: dataPayload
+    })
+  } else {
+    response = await fetch(`${API_BASE_URL}/about`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeaders()
+      },
+      body: JSON.stringify(dataPayload)
+    })
+  }
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal memperbarui konten tentang kami')
   }
   return response.json()
 }

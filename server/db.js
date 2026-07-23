@@ -43,7 +43,19 @@ const memoryDb = {
 
   projects: [],
 
-  contact_messages: []
+  contact_messages: [],
+
+  about_content: [
+    {
+      id: 1,
+      title: 'Passion & Dedikasi Dalam Setiap Helaian Benang',
+      subtitle: 'Cerita di balik kehangatan dan keindahan seni rajut buatan tangan kami.',
+      paragraph1: 'Selamat datang di Toko Rajut. Kami percaya bahwa setiap produk rajutan memiliki jiwa dan cerita tersendiri. Kami mengkhususkan diri dalam pembuatan karya rajut tangan eksklusif seperti syal, topi, selimut bayi, hingga dekorasi rumah.',
+      paragraph2: 'Setiap pasang tangan perajin kami merajut dengan teknik tradisional yang dipadukan dengan sentuhan estetika modern untuk menghadirkan produk berkualitas tinggi yang hangat dan penuh makna.',
+      image_url: '/about-lion.jpg',
+      badge_text: '⭐ Terpercaya Sejak 2024'
+    }
+  ]
 }
 
 // Cloudflare D1 Query via Wrangler CLI Fallback
@@ -99,7 +111,7 @@ export async function queryD1(sql, params = []) {
   return queryD1ViaWrangler(sql, params)
 }
 
-// Supabase-compatible D1 QueryBuilder with in-memory fallback
+// Cloudflare D1 QueryBuilder with in-memory fallback
 class D1TableQuery {
   constructor(table) {
     this.table = table

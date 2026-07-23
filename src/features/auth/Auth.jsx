@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import Button from '../../components/ui/Button'
 import { loginUser, registerUser } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
+import { setCookie, eraseCookie } from '../../utils/cookie'
 
 export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const { showToast } = useNotification()
@@ -11,6 +12,8 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [showLoginPassword, setShowLoginPassword] = useState(false)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [loginAgreeTerms, setLoginAgreeTerms] = useState(false)
 
   // Register State
   const [regName, setRegName] = useState('')
@@ -19,20 +22,39 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regEmail, setRegEmail] = useState('')
   const [regPassword, setRegPassword] = useState('')
   const [showRegPassword, setShowRegPassword] = useState(false)
+  const [regAgreeTerms, setRegAgreeTerms] = useState(false)
 
   const [loading, setLoading] = useState(false)
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
+
+    // Explicit alert if agreement checkbox is NOT checked
+    if (!loginAgreeTerms) {
+      showToast('⚠️ Harap centang kotak persetujuan Keamanan, Syarat Ketentuan & Kebijakan Privasi terlebih dahulu!', 'error', 4000)
+      return
+    }
+
     setLoading(true)
     showToast('Sedang memverifikasi akun...', 'loading', 0)
 
     try {
       const data = await loginUser(loginEmail.trim(), loginPassword)
+      
+      // Save to localStorage
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+
+      // Save to Cookies if Remember Me is selected
+      if (rememberMe) {
+        setCookie('rajut_token', data.token, 7)
+        setCookie('rajut_user', JSON.stringify(data.user), 7)
+      } else {
+        eraseCookie('rajut_token')
+        eraseCookie('rajut_user')
+      }
+
       onLoginSuccess(data.user)
-      
       showToast('Login Berhasil! Selamat datang kembali.', 'success')
       
       setLoginEmail('')
@@ -40,7 +62,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
       setTimeout(() => {
         onSectionChange('home')
-      }, 800)
+      }, 700)
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Email atau password salah!', 'error')
@@ -51,6 +73,13 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
   const handleRegisterSubmit = async (e) => {
     e.preventDefault()
+
+    // Explicit alert if agreement checkbox is NOT checked
+    if (!regAgreeTerms) {
+      showToast('⚠️ Harap centang kotak persetujuan Keamanan, Syarat Ketentuan & Kebijakan Privasi terlebih dahulu!', 'error', 4000)
+      return
+    }
+
     setLoading(true)
     showToast('Sedang memproses pendaftaran...', 'loading', 0)
 
@@ -65,10 +94,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
     try {
       const data = await registerUser(userData)
+
+      // Save to localStorage & Cookies
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      setCookie('rajut_token', data.token, 7)
+      setCookie('rajut_user', JSON.stringify(data.user), 7)
+
       onLoginSuccess(data.user)
-      
       showToast('Pendaftaran akun berhasil!', 'success')
       
       setRegName('')
@@ -79,7 +112,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
       setTimeout(() => {
         onSectionChange('home')
-      }, 800)
+      }, 700)
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Gagal mendaftar!', 'error')
@@ -93,20 +126,36 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       <div className="container" style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
         <div className="auth-card" style={{
           background: 'rgba(255, 255, 255, 0.98)',
-          backdropFilter: 'blur(16px)',
-          borderRadius: '1.5rem',
-          boxShadow: '0 25px 50px -12px rgba(210, 105, 30, 0.12)',
-          maxWidth: '460px',
+          backdropFilter: 'blur(20px)',
+          borderRadius: '1.75rem',
+          boxShadow: '0 25px 50px -12px rgba(210, 105, 30, 0.15), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+          maxWidth: '480px',
           width: '100%',
           boxSizing: 'border-box',
-          border: '1px solid rgba(226, 232, 240, 0.9)'
+          padding: '2.25rem 1.75rem'
         }}>
 
           {/* Logo Header */}
           <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>🧶</div>
-            <h2 style={{ fontSize: '1.5rem', color: '#1e293b', marginBottom: '0.25rem', fontWeight: '700' }}>Toko Rajut</h2>
-            <p style={{ fontSize: '0.9rem', color: '#64748b' }}>Masuk atau daftar untuk mengakses fitur akun</p>
+            <img
+              src="/logo.png"
+              alt="Toko Rajut Mascot Logo"
+              style={{
+                width: '72px',
+                height: '72px',
+                borderRadius: '20px',
+                objectFit: 'cover',
+                border: '2px solid #ffedd5',
+                boxShadow: '0 12px 25px rgba(210, 105, 30, 0.25)',
+                marginBottom: '0.75rem'
+              }}
+            />
+            <h2 style={{ fontSize: '1.6rem', color: '#1e293b', marginBottom: '0.25rem', fontWeight: '700', letterSpacing: '-0.02em' }}>
+              Toko Rajut
+            </h2>
+            <p style={{ fontSize: '0.88rem', color: '#64748b' }}>
+              {tab === 'login' ? 'Masuk ke akun Anda untuk mengelola katalog & pesanan' : 'Daftar akun baru untuk bergabung di Toko Rajut'}
+            </p>
           </div>
           
           {/* Mode Pill Switcher */}
@@ -116,14 +165,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               className={`mode-pill-btn ${tab === 'login' ? 'active' : ''}`}
               onClick={() => setTab('login')}
             >
-              🔑 Masuk
+              🔑 Masuk Akun
             </button>
             <button 
               type="button" 
               className={`mode-pill-btn ${tab === 'register' ? 'active' : ''}`}
               onClick={() => setTab('register')}
             >
-              📝 Daftar
+              📝 Daftar Baru
             </button>
           </div>
 
@@ -131,7 +180,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
           {tab === 'login' ? (
             <form onSubmit={handleLoginSubmit}>
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                <label htmlFor="loginEmail" style={{ fontWeight: '500', color: '#1e293b' }}>Email</label>
+                <label htmlFor="loginEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>✉️</span> Alamat Email
+                </label>
                 <input
                   type="email"
                   id="loginEmail"
@@ -139,11 +190,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
+                  style={{ borderRadius: '10px' }}
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="loginPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
+              <div className="form-group" style={{ marginBottom: '0.75rem' }}>
+                <label htmlFor="loginPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🔒</span> Kata Sandi (Password)
+                </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
                     type={showLoginPassword ? 'text' : 'password'}
@@ -152,7 +206,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                     value={loginPassword}
                     onChange={(e) => setLoginPassword(e.target.value)}
                     required
-                    style={{ paddingRight: '48px', width: '100%' }}
+                    style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
                   />
                   <button
                     type="button"
@@ -177,7 +231,48 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
+              {/* Checkbox 1: Ingat Saya (Separated near Password) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    style={{ width: '17px', height: '17px', accentColor: '#d2691e', cursor: 'pointer' }}
+                  />
+                  <span><strong>Ingat Saya</strong> (Simpan sesi Cookie 7 Hari)</span>
+                </label>
+              </div>
+
+              {/* Checkbox 2: Terms & Privacy Agreement Card (Separated above Submit Button) */}
+              <div style={{
+                background: '#fff7ed',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px solid #ffedd5',
+                marginBottom: '1.5rem'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.82rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={loginAgreeTerms}
+                    onChange={(e) => setLoginAgreeTerms(e.target.checked)}
+                    style={{ width: '18px', height: '18px', accentColor: '#d2691e', marginTop: '2px', cursor: 'pointer' }}
+                  />
+                  <span>
+                    Saya menyetujui <strong>Keamanan, Syarat Ketentuan & Kebijakan Privasi</strong> Layanan Toko Rajut.{' '}
+                    <button
+                      type="button"
+                      onClick={() => onSectionChange('privacy')}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', padding: 0, fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      (Baca Kebijakan Privasi)
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600' }}>
                 {loading ? 'Memproses Login...' : '🔑 Masuk ke Akun'}
               </Button>
             </form>
@@ -185,7 +280,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             /* Register Form */
             <form onSubmit={handleRegisterSubmit}>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label htmlFor="regName" style={{ fontWeight: '500', color: '#1e293b' }}>Nama Lengkap</label>
+                <label htmlFor="regName" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>👤</span> Nama Lengkap
+                </label>
                 <input
                   type="text"
                   id="regName"
@@ -193,11 +290,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   required
+                  style={{ borderRadius: '10px' }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label htmlFor="regAddress" style={{ fontWeight: '500', color: '#1e293b' }}>Alamat Tempat Tinggal</label>
+                <label htmlFor="regAddress" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📍</span> Alamat Tempat Tinggal
+                </label>
                 <input
                   type="text"
                   id="regAddress"
@@ -205,11 +305,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   value={regAddress}
                   onChange={(e) => setRegAddress(e.target.value)}
                   required
+                  style={{ borderRadius: '10px' }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label htmlFor="regPhone" style={{ fontWeight: '500', color: '#1e293b' }}>No. Telepon / WhatsApp</label>
+                <label htmlFor="regPhone" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>📱</span> No. Telepon / WhatsApp
+                </label>
                 <input
                   type="tel"
                   id="regPhone"
@@ -217,11 +320,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   value={regPhone}
                   onChange={(e) => setRegPhone(e.target.value)}
                   required
+                  style={{ borderRadius: '10px' }}
                 />
               </div>
 
               <div className="form-group" style={{ marginBottom: '1rem' }}>
-                <label htmlFor="regEmail" style={{ fontWeight: '500', color: '#1e293b' }}>Email</label>
+                <label htmlFor="regEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>✉️</span> Alamat Email
+                </label>
                 <input
                   type="email"
                   id="regEmail"
@@ -229,11 +335,14 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   required
+                  style={{ borderRadius: '10px' }}
                 />
               </div>
 
-              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                <label htmlFor="regPassword" style={{ fontWeight: '500', color: '#1e293b' }}>Password</label>
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="regPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span>🔒</span> Kata Sandi (Password)
+                </label>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
                     type={showRegPassword ? 'text' : 'password'}
@@ -242,7 +351,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                     value={regPassword}
                     onChange={(e) => setRegPassword(e.target.value)}
                     required
-                    style={{ paddingRight: '48px', width: '100%' }}
+                    style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
                   />
                   <button
                     type="button"
@@ -267,7 +376,35 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 </div>
               </div>
 
-              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
+              {/* Terms & Privacy Agreement Card (Separated above Submit Button) */}
+              <div style={{
+                background: '#fff7ed',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px solid #ffedd5',
+                marginBottom: '1.5rem'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.82rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={regAgreeTerms}
+                    onChange={(e) => setRegAgreeTerms(e.target.checked)}
+                    style={{ width: '18px', height: '18px', accentColor: '#d2691e', marginTop: '2px', cursor: 'pointer' }}
+                  />
+                  <span>
+                    Saya setuju dengan <strong>Keamanan, Syarat Ketentuan & Kebijakan Privasi Layanan Toko Rajut</strong>.{' '}
+                    <button
+                      type="button"
+                      onClick={() => onSectionChange('privacy')}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', padding: 0, fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      (Baca Kebijakan Privasi)
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600' }}>
                 {loading ? 'Mendaftarkan Akun...' : '📝 Daftar Akun Baru'}
               </Button>
             </form>

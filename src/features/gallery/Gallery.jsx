@@ -7,9 +7,8 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
   const { showToast } = useNotification()
   const [lightboxImage, setLightboxImage] = useState(null)
   
-  // Debug & Alert States
-  const [showDriveDebug, setShowDriveDebug] = useState(false)
-  const [uploadDebugModal, setUploadDebugModal] = useState(null)
+  // Popup Success Modal State (auto dismiss)
+  const [uploadSuccessModal, setUploadSuccessModal] = useState(null)
 
   // Creation States
   const [uploadMode, setUploadMode] = useState('file')
@@ -51,14 +50,16 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
     if (fileId) {
       return `/api/drive-image/${fileId}`
     }
-    if (url.startsWith('http')) return url
-    return url.startsWith('/') ? url : `/${url}`
+    if (url.startsWith('/uploads/') || url.startsWith('http://') || url.startsWith('https://')) {
+      return url
+    }
+    return `/${url}`
   }
 
   const handleUploadSubmit = async (e) => {
     e.preventDefault()
     setUploading(true)
-    showToast('☁️ Sedang mengunggah foto ke Google Drive Cloud Storage...', 'loading', 0)
+    showToast('☁️ Mengunggah foto ke Google Drive...', 'loading', 0)
 
     try {
       let result
@@ -81,21 +82,17 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       onAddImage(result)
 
       const fileUrl = result.image_url || ''
-      const fileId = getDriveFileId(fileUrl)
+      const fullImgUrl = getFullImgUrl(fileUrl)
 
-      if (fileId) {
-        showToast(`✅ Foto tersimpan di Google Drive! ID File: ${fileId}`, 'success', 5000)
-        setUploadDebugModal({
-          status: 'TERSIMPAN DI GOOGLE DRIVE',
-          fileId: fileId,
-          proxyUrl: `/api/drive-image/${fileId}`,
-          originalUrl: fileUrl,
-          uploadType: uploadMode === 'file' ? 'File Berkas (Google Drive API)' : 'URL Direct Link',
-          timestamp: new Date().toLocaleTimeString('id-ID')
-        })
-      } else {
-        showToast('✅ Foto berhasil ditambahkan ke galeri!', 'success')
-      }
+      // Show Popup Success Modal
+      setUploadSuccessModal({
+        url: fullImgUrl
+      })
+
+      // Auto dismiss popup after 3.5 seconds
+      setTimeout(() => {
+        setUploadSuccessModal((prev) => (prev?.url === fullImgUrl ? null : prev))
+      }, 3500)
 
       setImageUrlInput('')
       setSelectedFile(null)
@@ -112,7 +109,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
   const handleEditSubmit = async (e) => {
     e.preventDefault()
     setUpdating(true)
-    showToast('☁️ Sedang memperbarui foto di Google Drive...', 'loading', 0)
+    showToast('☁️ Memperbarui foto di Google Drive...', 'loading', 0)
 
     try {
       let result
@@ -134,13 +131,16 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
       onUpdateImage(result)
       const fileUrl = result.image_url || ''
-      const fileId = getDriveFileId(fileUrl)
+      const fullImgUrl = getFullImgUrl(fileUrl)
 
-      if (fileId) {
-        showToast(`✅ Foto berhasil di-update di Google Drive (ID: ${fileId})!`, 'success', 5000)
-      } else {
-        showToast('Foto berhasil diperbarui!', 'success')
-      }
+      // Show Popup Success Modal
+      setUploadSuccessModal({
+        url: fullImgUrl
+      })
+
+      setTimeout(() => {
+        setUploadSuccessModal((prev) => (prev?.url === fullImgUrl ? null : prev))
+      }, 3500)
 
       setEditingItem(null)
       setEditUrlInput('')
@@ -155,12 +155,12 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
   const confirmDeleteGalleryImage = async (id) => {
     setDeleteConfirmId(null)
-    showToast('☁️ Sedang menghapus foto dari Google Drive & Database...', 'loading', 0)
+    showToast('☁️ Menghapus foto dari Google Drive & Database...', 'loading', 0)
 
     try {
       await deleteGalleryImage(id)
       onDeleteImage(id)
-      showToast('🗑️ Foto berhasil dihapus dari Galeri & Google Drive!', 'success')
+      showToast('🗑️ Foto berhasil dihapus!', 'success')
     } catch (err) {
       console.error(err)
       showToast(`Gagal menghapus foto: ${err.message}`, 'error')
@@ -210,7 +210,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
         {/* Upload Form Panel - Render only for admin */}
         {user && user.role === 'admin' && (
-          <div className="upload-panel-card">
+          <div className="upload-panel-card" style={{ marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.2rem', color: '#d2691e', marginBottom: '1.25rem', textAlign: 'center', fontWeight: '600' }}>
               ✨ Unggah Foto Baru ke Google Drive (Admin)
             </h3>
@@ -252,13 +252,13 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                     <span className="format-pill">PNG</span>
                     <span className="format-pill">WEBP</span>
                     <span className="format-pill">HEIC (iPhone)</span>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 'auto' }}>Direct Google Drive HD Sync</span>
+                    <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 'auto' }}>Google Drive HD Sync</span>
                   </div>
                 </div>
               ) : (
                 <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                   <label htmlFor="galleryUrlInput" style={{ fontWeight: '500', color: '#1e293b' }}>
-                    Masukkan URL Gambar
+                    URL Gambar
                   </label>
                   <input
                     type="url"
@@ -278,147 +278,8 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
           </div>
         )}
 
-        {/* Google Drive Live Debug & Status Bar */}
-        <div style={{
-          background: '#ffffff',
-          borderRadius: '1.25rem',
-          padding: '1.25rem 1.5rem',
-          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
-          border: '1px solid #e2e8f0',
-          marginBottom: '2rem'
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '1.3rem' }}>☁️</span>
-              <div>
-                <strong style={{ color: '#1e293b', fontSize: '0.95rem', display: 'block' }}>Status Google Drive API Sync</strong>
-                <span style={{ color: '#64748b', fontSize: '0.8rem' }}>
-                  {galleryItems.filter(item => getDriveFileId(item.image_url)).length} dari {galleryItems.length} foto tersimpan & aktif di Google Drive
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                background: '#ecfdf5',
-                color: '#10b981',
-                padding: '4px 10px',
-                borderRadius: '999px',
-                fontSize: '0.75rem',
-                fontWeight: '600',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
-                DRIVE SYNC LIVE OK
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setShowDriveDebug(!showDriveDebug)}
-                style={{
-                  background: showDriveDebug ? '#d2691e' : '#f1f5f9',
-                  color: showDriveDebug ? '#ffffff' : '#475569',
-                  border: 'none',
-                  padding: '6px 14px',
-                  borderRadius: '8px',
-                  fontSize: '0.82rem',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                {showDriveDebug ? '❌ Tutup Panel Debug' : '🔍 Debug File Google Drive'}
-              </button>
-            </div>
-          </div>
-
-          {/* Expanded Debug Panel */}
-          {showDriveDebug && (
-            <div style={{
-              marginTop: '1rem',
-              paddingTop: '1rem',
-              borderTop: '1px dashed #cbd5e1',
-              background: '#f8fafc',
-              padding: '1rem',
-              borderRadius: '0.75rem'
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <h4 style={{ fontSize: '0.9rem', color: '#1e293b', margin: 0, fontWeight: '700' }}>
-                  📋 Log Verifikasi File Google Drive ({galleryItems.length} Foto Total):
-                </h4>
-                <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Streaming API Endpoint: <code>/api/drive-image/:fileId</code>
-                </span>
-              </div>
-
-              {galleryItems.length === 0 ? (
-                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: 0 }}>Belum ada foto tersimpan di sistem.</p>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
-                  {galleryItems.map((item, idx) => {
-                    const fId = getDriveFileId(item.image_url)
-                    return (
-                      <div key={item.id || idx} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        background: '#ffffff',
-                        padding: '8px 12px',
-                        borderRadius: '6px',
-                        border: '1px solid #e2e8f0',
-                        fontSize: '0.82rem',
-                        gap: '8px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                          <span style={{ fontWeight: '600', color: '#64748b' }}>#{idx + 1}</span>
-                          <span style={{
-                            background: fId ? '#eff6ff' : '#fef3c7',
-                            color: fId ? '#2563eb' : '#d97706',
-                            padding: '2px 8px',
-                            borderRadius: '4px',
-                            fontWeight: '600',
-                            whiteSpace: 'nowrap'
-                          }}>
-                            {fId ? '☁️ Drive Storage' : '🌐 External Link'}
-                          </span>
-                          <span style={{ color: '#334155', fontFamily: 'monospace', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                            {fId ? `ID: ${fId}` : item.image_url}
-                          </span>
-                        </div>
-
-                        {fId ? (
-                          <a
-                            href={getFullImgUrl(item.image_url)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              background: '#ecfdf5',
-                              color: '#059669',
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              textDecoration: 'none',
-                              fontWeight: '600',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            ▶️ Stream OK
-                          </a>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>URL Eksternal</span>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Gallery Grid */}
-        {loading && <p style={{ textAlign: 'center', color: '#64748b', padding: '3rem' }}>Memuat data galeri dari Google Drive & Database...</p>}
+        {loading && <p style={{ textAlign: 'center', color: '#64748b', padding: '3rem' }}>Memuat data galeri produk...</p>}
         
         {!loading && galleryItems.length === 0 && (
           <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#ffffff', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', marginTop: '1.5rem' }}>
@@ -434,30 +295,9 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
         <div className="gallery-grid">
           {galleryItems.map((item, index) => {
-            const driveFileId = getDriveFileId(item.image_url)
-
             return (
               <div key={item.id || index} className="gallery-card">
-                {driveFileId ? (
-                  <span
-                    className="gallery-badge"
-                    style={{
-                      background: 'rgba(15, 23, 42, 0.88)',
-                      color: '#38bdf8',
-                      cursor: 'pointer',
-                      backdropFilter: 'blur(8px)'
-                    }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      showToast(`☁️ File tersimpan di Google Drive! ID: ${driveFileId}`, 'success', 4000)
-                    }}
-                    title="Klik untuk info verifikasi Google Drive"
-                  >
-                    ☁️ Drive ID: {driveFileId.substring(0, 8)}...
-                  </span>
-                ) : (
-                  <span className="gallery-badge">🧶 Rajutan</span>
-                )}
+                <span className="gallery-badge">🧶 Rajutan</span>
 
                 {/* Admin Actions Glass Pills */}
                 {user && user.role === 'admin' && (
@@ -489,23 +329,22 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                   </div>
                 )}
 
-                <div
-                  className="gallery-card-img-wrapper"
+                <div 
+                  className="gallery-image-container"
                   onClick={() => setLightboxImage(getFullImgUrl(item.image_url))}
                   style={{ cursor: 'pointer' }}
                 >
                   <img
                     src={getFullImgUrl(item.image_url)}
-                    alt={`Karya Rajut ${index + 1}`}
+                    alt={`Rajutan ${item.id || index + 1}`}
+                    loading="lazy"
                     onError={(e) => {
                       e.target.onerror = null
+                      e.target.src = 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop'
                     }}
                   />
-                  
-                  <div className="gallery-card-overlay">
-                    <button type="button" className="gallery-zoom-btn">
-                      🔍 Perbesar Foto
-                    </button>
+                  <div className="gallery-overlay">
+                    <span className="gallery-zoom-icon">🔍 Klik untuk Memperbesar</span>
                   </div>
                 </div>
               </div>
@@ -514,48 +353,20 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
         </div>
       </div>
 
-      {/* Lightbox Enlarged Image Modal */}
+      {/* Lightbox Modal */}
       {lightboxImage && (
-        <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.92)',
-            backdropFilter: 'blur(16px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 10000,
-            cursor: 'pointer',
-            padding: '20px'
-          }}
-          onClick={() => setLightboxImage(null)}
-        >
-          <div style={{ position: 'relative', maxWidth: '900px', width: '100%', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+        <div className="lightbox-modal" onClick={() => setLightboxImage(null)}>
+          <div className="lightbox-content" onClick={(e) => e.stopPropagation()}>
             <button
+              className="lightbox-close"
               onClick={() => setLightboxImage(null)}
-              style={{
-                position: 'absolute',
-                top: '-48px',
-                right: '0',
-                background: 'rgba(255,255,255,0.2)',
-                color: 'white',
-                border: 'none',
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                cursor: 'pointer',
-                fontSize: '1.2rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}
+              aria-label="Close Lightbox"
             >
-              ✕
+              &times;
             </button>
             <img
               src={lightboxImage}
-              alt="Detail Foto Rajut"
+              alt="Karya Rajutan Fullsize"
               style={{
                 maxHeight: '80vh',
                 maxWidth: '100%',
@@ -564,88 +375,74 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                 objectFit: 'contain'
               }}
             />
-            <div style={{ marginTop: '12px', color: 'rgba(255,255,255,0.7)', fontSize: '0.85rem' }}>
-              🔒 HD Image Streamed via Google Drive API
-            </div>
           </div>
         </div>
       )}
 
-      {/* Google Drive Upload Alert Verification Modal */}
-      {uploadDebugModal && (
-        <div style={modalOverlayStyle} onClick={() => setUploadDebugModal(null)}>
-          <div style={{ ...modalContentStyle, maxWidth: '480px' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>🎉</div>
-              <h3 style={{ fontSize: '1.3rem', color: '#059669', fontWeight: '700', marginBottom: '0.25rem' }}>
-                Foto Tersimpan ke Google Drive!
-              </h3>
-              <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
-                File gambar telah berhasil diunggah & diverifikasi di penyimpanan cloud Google Drive.
-              </p>
-            </div>
-
+      {/* Upload Success Auto-Dismiss Popup Modal */}
+      {uploadSuccessModal && (
+        <div style={modalOverlayStyle} onClick={() => setUploadSuccessModal(null)}>
+          <div style={{
+            ...modalContentStyle,
+            maxWidth: '400px',
+            textAlign: 'center',
+            padding: '2rem 1.5rem'
+          }} onClick={(e) => e.stopPropagation()}>
             <div style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '1rem',
-              padding: '1rem',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.75rem',
-              fontSize: '0.88rem'
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              background: '#ecfdf5',
+              color: '#10b981',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '2rem',
+              marginBottom: '1rem',
+              border: '2px solid #a7f3d0'
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-                <span style={{ color: '#64748b' }}>Status System:</span>
-                <strong style={{ color: '#059669' }}>{uploadDebugModal.status}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-                <span style={{ color: '#64748b' }}>Google Drive File ID:</span>
-                <strong style={{ color: '#2563eb', fontFamily: 'monospace' }}>{uploadDebugModal.fileId}</strong>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.5rem' }}>
-                <span style={{ color: '#64748b' }}>Stream Proxy URL:</span>
-                <span style={{ color: '#334155', fontFamily: 'monospace', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {uploadDebugModal.proxyUrl}
-                </span>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#64748b' }}>Waktu Upload:</span>
-                <span style={{ color: '#1e293b' }}>{uploadDebugModal.timestamp}</span>
-              </div>
+              ✓
             </div>
+            <h3 style={{ fontSize: '1.3rem', color: '#1e293b', fontWeight: '700', marginBottom: '0.35rem' }}>
+              Foto Berhasil Diunggah!
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.88rem', marginBottom: '1.25rem', lineHeight: '1.5' }}>
+              Foto produk terbaru telah tersimpan secara aman di Google Drive.
+            </p>
 
-            <div style={{ textAlign: 'center', marginBottom: '1.25rem' }}>
-              <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.5rem', fontWeight: '500' }}>
-                Pratinjau Hasil Stream Google Drive:
+            {uploadSuccessModal.url && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <img
+                  src={uploadSuccessModal.url}
+                  alt="Uploaded preview"
+                  style={{
+                    maxHeight: '140px',
+                    maxWidth: '100%',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    objectFit: 'cover',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
+                  }}
+                />
               </div>
-              <img
-                src={uploadDebugModal.proxyUrl}
-                alt="Drive Stream Preview"
-                style={{ maxHeight: '160px', borderRadius: '0.75rem', border: '2px solid #059669', objectFit: 'contain' }}
-              />
-            </div>
+            )}
 
             <button
               type="button"
-              onClick={() => setUploadDebugModal(null)}
+              onClick={() => setUploadSuccessModal(null)}
               style={{
                 width: '100%',
                 background: '#d2691e',
                 color: 'white',
                 border: 'none',
                 borderRadius: '10px',
-                padding: '12px',
+                padding: '10px',
                 fontWeight: '600',
                 cursor: 'pointer',
-                fontSize: '0.95rem'
+                fontSize: '0.9rem'
               }}
             >
-              👍 Saya Mengerti (Tutup Alert Log)
+              Selesai (Tutup)
             </button>
           </div>
         </div>
@@ -659,13 +456,13 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               Edit Foto Galeri & Google Drive
             </h3>
 
-            <div className="mode-pill-tabs">
+            <div className="mode-pill-tabs" style={{ marginBottom: '1.25rem' }}>
               <button
                 type="button"
                 className={`mode-pill-btn ${editMode === 'file' ? 'active' : ''}`}
                 onClick={() => setEditMode('file')}
               >
-                Upload File Baru
+                Unggah Berkas Baru
               </button>
               <button
                 type="button"
