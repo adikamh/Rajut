@@ -1,87 +1,61 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
-export default function Home({ isActive, onSectionChange, projects = [], gallery = [], loading }) {
-  const [animate, setAnimate] = useState(false)
+const SparkleIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+)
+
+const GalleryIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </svg>
+)
+
+const PackageIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <line x1="16.5" y1="9.4" x2="7.5" y2="4.21" />
+    <polygon points="12 22.08 12 12 3 6.92 3 17.08 12 22.08" />
+    <polygon points="12 22.08 21 17.08 21 6.92 12 12 12 22.08" />
+    <polygon points="12 12 21 6.92 12 1.84 3 6.92 12 12" />
+  </svg>
+)
+
+const ZoomIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <line x1="11" y1="8" x2="11" y2="14" />
+    <line x1="8" y1="11" x2="14" y2="11" />
+  </svg>
+)
+
+const CloseIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
+
+export default function Home({ isActive, onSectionChange, featuredWorks = [], loading = false }) {
   const [selectedImage, setSelectedImage] = useState(null)
-
-  const getImgUrl = (item) => {
-    if (!item) return ''
-    const url = item.image_url || item.img || ''
-    if (!url) return ''
-    const driveMatch = url.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
-    if (driveMatch && driveMatch[1]) {
-      return `/api/drive-image/${driveMatch[1]}`
-    }
-    if (url.startsWith('http')) return url
-    return url.startsWith('/') ? url : `/${url}`
-  }
-
-  // Combine items from Gallery and Projects so all uploaded photos appear in Karya Unggulan (Strict max 6 photos)
-  const combinedItems = []
-  const seenUrls = new Set()
-
-  // Add Gallery items first
-  if (gallery && gallery.length > 0) {
-    gallery.forEach((item, idx) => {
-      const imgUrl = getImgUrl(item)
-      if (imgUrl && !seenUrls.has(imgUrl)) {
-        seenUrls.add(imgUrl)
-        combinedItems.push({
-          id: `gal-${item.id || idx}`,
-          img: imgUrl
-        })
-      }
-    })
-  }
-
-  // Add Project items
-  if (projects && projects.length > 0) {
-    projects.forEach((item, idx) => {
-      const imgUrl = getImgUrl(item)
-      if (imgUrl && !seenUrls.has(imgUrl)) {
-        seenUrls.add(imgUrl)
-        combinedItems.push({
-          id: `proj-${item.id || idx}`,
-          img: imgUrl
-        })
-      }
-    })
-  }
-
-  // Fallback default sample works if both gallery & projects are empty
-  if (combinedItems.length === 0) {
-    combinedItems.push(
-      { id: 'sample-1', img: '/about-lion.jpg' },
-      { id: 'sample-2', img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop' },
-      { id: 'sample-3', img: '/project-sample.jpg' },
-      { id: 'sample-4', img: '/gallery-knitting-1.jpg' }
-    )
-  }
-
-  // Strictly display maximum 6 featured works
-  const featuredWorks = combinedItems.slice(0, 6)
+  const [animate, setAnimate] = useState(false)
 
   useEffect(() => {
     if (isActive) {
-      const timer = setTimeout(() => {
-        setAnimate(true)
-      }, 50)
-      return () => clearTimeout(timer)
+      setTimeout(() => setAnimate(true), 100)
     } else {
       setAnimate(false)
     }
-  }, [isActive, projects.length, gallery.length])
+  }, [isActive])
 
-  // Close modal on Escape key
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        setSelectedImage(null)
-      }
+      if (e.key === 'Escape') setSelectedImage(null)
     }
-    if (selectedImage) {
-      window.addEventListener('keydown', handleKeyDown)
-    }
+    window.addEventListener('keydown', handleKeyDown)
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
     }
@@ -93,7 +67,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
       <div className="hero">
         <div className="hero-content">
           <span style={{ display: 'inline-block', background: 'rgba(210, 105, 30, 0.1)', color: '#d2691e', padding: '6px 14px', borderRadius: '999px', fontSize: '0.85rem', fontWeight: '600', marginBottom: '1.25rem' }}>
-            ✨ Seni Rajut Handcrafted Indonesia
+            <SparkleIcon /> Seni Rajut Handcrafted Indonesia
           </span>
           <h1 style={{ lineHeight: '1.25', marginBottom: '1.25rem' }}>
             Kehangatan & Keindahan dalam Setiap Helaian Rajutan
@@ -112,7 +86,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
               }}
               style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: '10px' }}
             >
-              🖼️ Jelajahi Galeri
+              <GalleryIcon /> Jelajahi Galeri
             </a>
             <a
               href="#projects"
@@ -123,7 +97,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
               }}
               style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: '10px', background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}
             >
-              📦 Lihat Proyek Rajut
+              <PackageIcon /> Lihat Proyek Rajut
             </a>
           </div>
         </div>
@@ -187,7 +161,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
                   />
                   <div className="gallery-overlay">
                     <span className="gallery-zoom-icon">
-                      🔍 Lihat Foto Full
+                      <ZoomIcon /> Lihat Foto Full
                     </span>
                   </div>
                 </div>
@@ -206,33 +180,26 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
             position: 'fixed',
             top: 0,
             left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(15, 23, 42, 0.92)',
-            backdropFilter: 'blur(12px)',
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.9)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 10000,
-            padding: '20px',
-            boxSizing: 'border-box'
+            zIndex: 1000
           }}
         >
           <div
-            className="modal-content"
+            className="modal-content-wrapper"
             onClick={(e) => e.stopPropagation()}
             style={{
               position: 'relative',
-              maxWidth: '850px',
-              width: '100%',
-              background: '#0f172a',
-              borderRadius: '1.5rem',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              maxWidth: '90%',
+              maxHeight: '90%',
               display: 'flex',
               flexDirection: 'column',
-              alignItems: 'center',
-              border: '1px solid rgba(255, 255, 255, 0.15)'
+              alignItems: 'center'
             }}
           >
             {/* Close Button */}
@@ -259,7 +226,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
               }}
               title="Tutup (Escape)"
             >
-              ✕
+              <CloseIcon />
             </button>
 
             {/* Modal Image */}

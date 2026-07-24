@@ -3,6 +3,92 @@ import Button from '../../components/ui/Button'
 import { uploadGalleryImage, updateGalleryImage, deleteGalleryImage } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 
+const SparkleIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+)
+
+const FileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
+const LinkIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+)
+
+const UploadIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="17 8 12 3 7 8" />
+    <line x1="12" y1="3" x2="12" y2="15" />
+  </svg>
+)
+
+const YarnIcon = ({ size = 22, color = "currentColor", style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: size > 20 ? '0' : '6px', ...style }}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10" />
+    <path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10" />
+    <path d="M2 12h20" />
+  </svg>
+)
+
+const EditIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+
+const TrashIcon = ({ size = 14, style = {} }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={style}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" y1="11" x2="10" y2="17" />
+    <line x1="14" y1="11" x2="14" y2="17" />
+  </svg>
+)
+
+const ZoomIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    <line x1="11" y1="8" x2="11" y2="14" />
+    <line x1="8" y1="11" x2="14" y2="11" />
+  </svg>
+)
+
+const CloseIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
+
+const CheckIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block' }}>
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+)
+
+const PrevIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="15 18 9 12 15 6" />
+  </svg>
+)
+
+const NextIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="9 18 15 12 9 6" />
+  </svg>
+)
+
 export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpdateImage, onDeleteImage, loading, user }) {
   const { showToast } = useNotification()
   const [lightboxIndex, setLightboxIndex] = useState(null)
@@ -75,7 +161,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
   const handleUploadSubmit = async (e) => {
     e.preventDefault()
     setUploading(true)
-    showToast('☁️ Mengunggah foto ke Google Drive...', 'loading', 0)
+    showToast('Mengunggah foto ke Google Drive...', 'loading', 0)
 
     try {
       let result
@@ -125,7 +211,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
   const handleEditSubmit = async (e) => {
     e.preventDefault()
     setUpdating(true)
-    showToast('☁️ Memperbarui foto di Google Drive...', 'loading', 0)
+    showToast('Memperbarui foto di Google Drive...', 'loading', 0)
 
     try {
       let result
@@ -171,12 +257,12 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
 
   const confirmDeleteGalleryImage = async (id) => {
     setDeleteConfirmId(null)
-    showToast('☁️ Menghapus foto dari Google Drive & Database...', 'loading', 0)
+    showToast('Menghapus foto dari Google Drive & Database...', 'loading', 0)
 
     try {
       await deleteGalleryImage(id)
       onDeleteImage(id)
-      showToast('🗑️ Foto berhasil dihapus!', 'success')
+      showToast('Foto berhasil dihapus!', 'success')
     } catch (err) {
       console.error(err)
       showToast(`Gagal menghapus foto: ${err.message}`, 'error')
@@ -228,7 +314,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
         {user && user.role === 'admin' && (
           <div className="upload-panel-card" style={{ marginBottom: '2rem' }}>
             <h3 style={{ fontSize: '1.2rem', color: '#d2691e', marginBottom: '1.25rem', textAlign: 'center', fontWeight: '600' }}>
-              ✨ Unggah Foto Baru ke Google Drive (Admin)
+              <SparkleIcon /> Unggah Foto Baru ke Google Drive (Admin)
             </h3>
 
             {/* Mode Pill Switcher */}
@@ -238,14 +324,14 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                 className={`mode-pill-btn ${uploadMode === 'file' ? 'active' : ''}`}
                 onClick={() => setUploadMode('file')}
               >
-                📁 Unggah Berkas
+                <FileIcon /> Unggah Berkas
               </button>
               <button
                 type="button"
                 className={`mode-pill-btn ${uploadMode === 'url' ? 'active' : ''}`}
                 onClick={() => setUploadMode('url')}
               >
-                🔗 Gunakan URL
+                <LinkIcon /> Gunakan URL
               </button>
             </div>
 
@@ -288,7 +374,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               )}
 
               <Button type="submit" disabled={uploading} style={{ width: '100%', marginTop: '0.75rem' }}>
-                {uploading ? 'Mengunggah ke Drive...' : '📤 Unggah & Simpan ke Google Drive'}
+                {uploading ? 'Mengunggah ke Drive...' : <><UploadIcon /> Unggah & Simpan ke Google Drive</>}
               </Button>
             </form>
           </div>
@@ -298,8 +384,10 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
         {loading && <p style={{ textAlign: 'center', color: '#64748b', padding: '3rem' }}>Memuat data galeri produk...</p>}
         
         {!loading && galleryItems.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#ffffff', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', marginTop: '1.5rem' }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🧶</div>
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#ffffff', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', marginTop: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ marginBottom: '1rem' }}>
+              <YarnIcon size={40} color="#d2691e" />
+            </div>
             <h3 style={{ fontSize: '1.2rem', color: '#1e293b', marginBottom: '0.5rem' }}>Belum Ada Foto di Galeri</h3>
             <p style={{ fontSize: '0.95rem', color: '#64748b', maxWidth: '400px', margin: '0 auto' }}>
               {user && user.role === 'admin'
@@ -318,7 +406,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                 onClick={() => setLightboxIndex(index)}
                 style={{ cursor: 'pointer' }}
               >
-                <span className="gallery-badge">🧶 Rajutan</span>
+                <span className="gallery-badge"><YarnIcon size={14} color="#d2691e" style={{ marginRight: '4px' }} /> Rajutan</span>
 
                 {/* Admin Actions Glass Pills */}
                 {user && user.role === 'admin' && (
@@ -338,7 +426,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                         }
                       }}
                     >
-                      ✎
+                      <EditIcon />
                     </button>
                     <button
                       type="button"
@@ -349,7 +437,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                         setDeleteConfirmId(item.id)
                       }}
                     >
-                      🗑️
+                      <TrashIcon size={14} />
                     </button>
                   </div>
                 )}
@@ -365,7 +453,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
                     }}
                   />
                   <div className="gallery-overlay">
-                    <span className="gallery-zoom-icon">🔍 Klik untuk Memperbesar</span>
+                    <span className="gallery-zoom-icon"><ZoomIcon /> Klik untuk Memperbesar</span>
                   </div>
                 </div>
               </div>
@@ -388,7 +476,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               }}
               title="Foto Sebelumnya (Panah Kiri)"
             >
-              ‹
+              <PrevIcon />
             </button>
           )}
 
@@ -399,7 +487,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               onClick={() => setLightboxIndex(null)}
               aria-label="Tutup Modal"
             >
-              ✕
+              <CloseIcon />
             </button>
 
             <img
@@ -418,9 +506,9 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               }}
             />
 
-            <div style={{ marginTop: '12px', textAlign: 'center', color: '#ffffff' }}>
-              <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#fdba74' }}>
-                🧶 Karya Rajutan Toko Rajut #{lightboxIndex + 1}
+            <div style={{ marginTop: '12px', textAlign: 'center', color: '#ffffff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: '600', color: '#fdba74', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <YarnIcon size={14} color="#fdba74" /> Karya Rajutan Toko Rajut #{lightboxIndex + 1}
               </div>
               <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '3px' }}>
                 Foto {lightboxIndex + 1} dari {galleryItems.length} • Tekan Esc atau klik di luar untuk menutup
@@ -439,7 +527,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               }}
               title="Foto Selanjutnya (Panah Kanan)"
             >
-              ›
+              <NextIcon />
             </button>
           )}
         </div>
@@ -452,7 +540,10 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
             ...modalContentStyle,
             maxWidth: '400px',
             textAlign: 'center',
-            padding: '2rem 1.5rem'
+            padding: '2rem 1.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center'
           }} onClick={(e) => e.stopPropagation()}>
             <div style={{
               width: '60px',
@@ -467,7 +558,7 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
               marginBottom: '1rem',
               border: '2px solid #a7f3d0'
             }}>
-              ✓
+              <CheckIcon />
             </div>
             <h3 style={{ fontSize: '1.3rem', color: '#1e293b', fontWeight: '700', marginBottom: '0.35rem' }}>
               Foto Berhasil Diunggah!
@@ -604,15 +695,17 @@ export default function Gallery({ isActive, galleryItems = [], onAddImage, onUpd
       {/* Delete Confirmation Modal */}
       {deleteConfirmId && (
         <div style={modalOverlayStyle} onClick={() => setDeleteConfirmId(null)}>
-          <div style={{ ...modalContentStyle, maxWidth: '420px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>🗑️</div>
+          <div style={{ ...modalContentStyle, maxWidth: '420px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ marginBottom: '0.75rem' }}>
+              <TrashIcon size={40} style={{ color: '#dc3545' }} />
+            </div>
             <h3 style={{ fontSize: '1.2rem', color: '#dc3545', marginBottom: '0.5rem', fontWeight: '600' }}>
               Hapus Foto Galeri & Drive?
             </h3>
             <p style={{ color: '#64748b', marginBottom: '1.75rem', fontSize: '0.92rem', lineHeight: '1.5' }}>
               Apakah Anda yakin ingin menghapus foto ini? File fisik di <strong>Google Drive</strong> juga akan dihapus permanen.
             </p>
-            <div style={{ display: 'flex', gap: '0.85rem' }}>
+            <div style={{ display: 'flex', gap: '0.85rem', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => confirmDeleteGalleryImage(deleteConfirmId)}

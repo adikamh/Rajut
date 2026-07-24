@@ -27,6 +27,54 @@ const app = express()
 const PORT = process.env.PORT || 3001
 const JWT_SECRET = process.env.JWT_SECRET || 'rajut_secret_token_key_123!'
 
+// Lightweight In-Memory Rate Limiter to prevent DDoS/Brute-Force
+const ipRequestCounts = {}
+
+// Memory cleanup every 5 minutes
+setInterval(() => {
+  const now = Date.now()
+  for (const ip in ipRequestCounts) {
+    ipRequestCounts[ip] = ipRequestCounts[ip].filter(timestamp => now - timestamp < 15 * 60 * 1000)
+    if (ipRequestCounts[ip].length === 0) {
+      delete ipRequestCounts[ip]
+    }
+  }
+}, 5 * 60 * 1000)
+
+function createRateLimiter(maxRequests, windowMs, message) {
+  return (req, res, next) => {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip
+    const now = Date.now()
+
+    if (!ipRequestCounts[ip]) {
+      ipRequestCounts[ip] = []
+    }
+
+    ipRequestCounts[ip] = ipRequestCounts[ip].filter(timestamp => now - timestamp < windowMs)
+
+    if (ipRequestCounts[ip].length >= maxRequests) {
+      return res.status(429).json({ error: message || 'Terlalu banyak permintaan dari IP Anda, silakan coba beberapa saat lagi.' })
+    }
+
+    ipRequestCounts[ip].push(now)
+    next()
+  }
+}
+
+// Strict limiter for authentication & OTP routes (max 15 requests per 15 minutes)
+const authLimiter = createRateLimiter(
+  15,
+  15 * 60 * 1000,
+  'Terlalu banyak percobaan masuk/registrasi/OTP dari IP ini. Silakan coba lagi setelah 15 menit.'
+)
+
+// General limiter for general API routes (max 300 requests per 15 minutes)
+const generalLimiter = createRateLimiter(
+  300,
+  15 * 60 * 1000,
+  'Batas permintaan terlampaui. Silakan coba lagi setelah 15 menit.'
+)
+
 // Ensure the public uploads directory exists safely (using /tmp on Vercel)
 const isVercel = process.env.VERCEL || process.env.NODE_ENV === 'production'
 const uploadsDir = isVercel
@@ -42,7 +90,9 @@ try {
 }
 
 app.use(cors())
-app.use(express.json())
+app.use(express.json({ limit: '10mb' }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
+app.use('/api', generalLimiter)
 app.use('/uploads', express.static(uploadsDir))
 
 // Multer config for file uploads
@@ -56,7 +106,10 @@ const storage = multer.diskStorage({
   }
 })
 
-const upload = multer({ storage })
+const upload = multer({ 
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }
+})
 
 // Google Drive Auth & Upload Configuration (Supports OAuth 2.0 User Refresh Token & Service Account)
 let driveAuthClient
@@ -208,7 +261,7 @@ app.get('/api/drive-image/:fileId', async (req, res) => {
 async function deleteFromGoogleDrive(imageUrl) {
   if (!imageUrl) return
   try {
-    const driveMatch = imageUrl.match(/(?:id=|\/d\/|file\/d\/)([a-zA-Z0-9_-]{25,})/)
+    const driveMatch = imageUrl.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
     if (driveMatch && driveMatch[1]) {
       const fileId = driveMatch[1]
       await drive.files.delete({ fileId: fileId })
@@ -297,12 +350,32 @@ function generateToken(user) {
 const registerOtpStore = new Map()
 
 // 1a. Request Register OTP Code (With Email Uniqueness Check)
-app.post('/api/auth/register-request-otp', async (req, res) => {
+app.post('/api/auth/register-request-otp', authLimiter, async (req, res) => {
   try {
-    const { name, address, phone, email, password } = req.body
+    const { name, address, phone, email, password, turnstileToken } = req.body
 
     if (!name || !address || !phone || !email || !password) {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
+    }
+
+    // Verify Cloudflare Turnstile token
+    if (!turnstileToken) {
+      return res.status(400).json({ error: 'Token keamanan Turnstile tidak ditemukan!' })
+    }
+
+    try {
+      const verificationResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=0x4AAAAAAD8f4xhCNPauutciJns1UYmjrPw&response=${encodeURIComponent(turnstileToken)}`
+      })
+      const verificationResult = await verificationResponse.json()
+      if (!verificationResult.success) {
+        return res.status(400).json({ error: 'Verifikasi keamanan Turnstile gagal. Silakan coba kembali.' })
+      }
+    } catch (verifyErr) {
+      console.error('Turnstile Verification Error:', verifyErr)
+      return res.status(500).json({ error: 'Gagal melakukan verifikasi keamanan. Silakan coba sesaat lagi.' })
     }
 
     const cleanEmail = email.trim().toLowerCase()
@@ -360,7 +433,7 @@ app.post('/api/auth/register-request-otp', async (req, res) => {
 })
 
 // 1b. Verify Register OTP Code & Create User Account
-app.post('/api/auth/register-verify-otp', async (req, res) => {
+app.post('/api/auth/register-verify-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body
 
@@ -431,7 +504,7 @@ app.post('/api/auth/register-verify-otp', async (req, res) => {
 })
 
 // 1c. Register User (Direct Fallback)
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
     const { name, address, phone, email, password, role } = req.body
 
@@ -481,7 +554,7 @@ app.post('/api/auth/register', async (req, res) => {
 })
 
 // 2. Login User
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
     const { email, password } = req.body
 
@@ -526,7 +599,7 @@ app.post('/api/auth/login', async (req, res) => {
 const otpStore = new Map()
 
 // 2b. Request Reset Password OTP Code
-app.post('/api/auth/request-otp', async (req, res) => {
+app.post('/api/auth/request-otp', authLimiter, async (req, res) => {
   try {
     const { email } = req.body
 
@@ -606,7 +679,7 @@ app.post('/api/auth/request-otp', async (req, res) => {
 })
 
 // 2c. Verify Reset OTP Code Only (Step 2 Verification)
-app.post('/api/auth/verify-reset-otp', async (req, res) => {
+app.post('/api/auth/verify-reset-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp } = req.body
 
@@ -643,7 +716,7 @@ app.post('/api/auth/verify-reset-otp', async (req, res) => {
 })
 
 // 2d. Reset Password with Verified OTP (Step 3)
-app.post('/api/auth/reset-password-otp', async (req, res) => {
+app.post('/api/auth/reset-password-otp', authLimiter, async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body
 
@@ -1091,6 +1164,39 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
       .update(updateData)
       .eq('id', id)
 
+    if (error) throw error
+
+    // Sync project photos to gallery table and clean up Google Drive / local files
+    if (imageUrls.length > 0) {
+      if (oldImageUrl) {
+        let oldUrls = []
+        try {
+          oldUrls = oldImageUrl.startsWith('[') ? JSON.parse(oldImageUrl) : [oldImageUrl]
+        } catch (e) {
+          oldUrls = [oldImageUrl]
+        }
+        for (const oldUrl of oldUrls) {
+          // Delete file from Google Drive or local uploads
+          await deleteFromGoogleDrive(oldUrl)
+          // Delete from gallery table
+          try {
+            await db.from('gallery').delete().eq('image_url', oldUrl)
+          } catch (e) {
+            console.warn('Error deleting old url from gallery:', e.message)
+          }
+        }
+      }
+
+      // Add new URLs to gallery
+      for (const url of imageUrls) {
+        try {
+          await db.from('gallery').insert([{ image_url: url }])
+        } catch (e) {
+          console.warn('Error inserting new url to gallery:', e.message)
+        }
+      }
+    }
+
     const updatedItem = (data && data.length > 0) ? data[0] : { id, ...updateData, image_url: updateData.image_url || oldImageUrl }
 
     res.json(updatedItem)
@@ -1144,7 +1250,7 @@ app.delete('/api/projects/:id', authenticateToken, requireAdmin, async (req, res
 
 
 // 3. Contact Us Messages
-app.post('/api/contact', async (req, res) => {
+app.post('/api/contact', authLimiter, async (req, res) => {
   try {
     const { name, email, message } = req.body
     if (!name || !email || !message) {
@@ -1172,6 +1278,12 @@ app.post('/api/contact', async (req, res) => {
     console.error('Error saving contact message:', error)
     res.status(500).json({ error: 'Failed to submit contact message' })
   }
+})
+
+// Global error handling middleware to catch unhandled errors and prevent crashes
+app.use((err, req, res, next) => {
+  console.error('Unhandled Exception:', err)
+  res.status(500).json({ error: 'Terjadi kesalahan internal pada server' })
 })
 
 if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
