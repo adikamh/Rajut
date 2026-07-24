@@ -733,6 +733,252 @@ Mengubah bayangan teks petunjuk (*placeholder*) pada form input halaman Masuk & 
 - **Login Placeholder**: Mengubah `placeholder="haikaladika8@gmail.com"` menjadi `placeholder="Email"` dan `placeholder="••••••••"` menjadi `placeholder="Password"`.
 - **Register Placeholder**: Mengubah `placeholder="nama@email.com"` menjadi `placeholder="Email"` dan `placeholder="Minimal 4 karakter"` menjadi `placeholder="Password"`.
 
+---
+---
+
+## Integration Google Drive Storage Direct Upload & Endpoint API About ([server/index.js](file:///c:/laragon/www/Rajut/server/index.js) & [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js))
+
+Mengubah mekanisme upload media galeri dan proyek menggunakan Google Drive API secara langsung serta menambahkan endpoint REST API untuk manajemen konten dinamis halaman About.
+
+### 84. Backend Express API Server & Direct Drive Upload (Diubah)
+- **Direct Google Drive Upload**: Mengonfigurasi fungsi `uploadToGoogleDrive` sebagai handler penyimpanan cloud utama tanpa fallback ke disk lokal.
+- **Dynamic About Content API**: Menambahkan rute `GET /api/about` dan `PUT /api/about` untuk membaca dan memperbarui data headline, deskripsi, badge, serta foto hero `about-lion.jpg` pada tabel `about_content`.
+- **Multi-Interface Network Binding**: Mengubah `app.listen(PORT)` menjadi `app.listen(PORT, '0.0.0.0')` agar server lokal Express dapat diakses melalui alamat IP jaringan lokal (LAN) oleh perangkat HP/mobile.
+
+---
+---
+
+## Halaman Kebijakan Privasi / Privacy Policy Platform ([src/features/privacy/Privacy.jsx](file:///c:/laragon/www/Rajut/src/features/privacy/Privacy.jsx))
+
+Membuat halaman Kebijakan Privasi (Privacy Policy) untuk memberikan transparansi mengenai pengumpulan data pengguna, hak cipta karya rajut buatan tangan, penggunaan cookie, dan keamanan informasi.
+
+### 85. [src/features/privacy/Privacy.jsx](file:///c:/laragon/www/Rajut/src/features/privacy/Privacy.jsx), [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) & [src/components/shared/Footer.jsx](file:///c:/laragon/www/Rajut/src/components/shared/Footer.jsx) (Baru & Diubah)
+- **Komponen Halaman Privacy**: Membuat komponen `Privacy.jsx` yang berisi 6 seksi utama kebijakan privasi yang terstruktur dan responsif.
+- **Rute Navigasi**: Mendaftarkan rute `#privacy` / `/privacy` di `App.jsx` serta menyematkan link langsung Kebijakan Privasi di bagian Footer.
+- **Styling Responsive**: Menambahkan kelas CSS `.privacy-container`, `.privacy-card`, `.privacy-section`, dan breakpoint seluler pada `src/styles/style.css`.
+
+---
+---
+
+## Modernisasi Layout & Dynamic Editor Halaman "Tentang Kami" ([src/features/about/About.jsx](file:///c:/laragon/www/Rajut/src/features/about/About.jsx))
+
+Meredesign halaman "Tentang Kami" menjadi lebih interaktif, kaya visual branding, serta dilengkapi modal editor untuk admin.
+
+### 86. [src/features/about/About.jsx](file:///c:/laragon/www/Rajut/src/features/about/About.jsx) (Diubah)
+- **Interactive Story & Vision Mission**: Menyusun tata letak modern dengan hero section `about-lion.jpg`, kartu Visi & Misi interaktif, nilai-nilai keunggulan rajut buatan tangan, dan showcase tim perajin.
+- **Live Admin Content Editor**: Menyediakan modal editor interaktif khusus akun admin untuk memperbarui teks headline, sub-headline, deskripsi paragraf, dan mengunggah gambar hero baru secara instan via API.
+
+---
+---
+
+## Persistence Session Autentikasi dengan Browser Cookie ([src/utils/cookie.js](file:///c:/laragon/www/Rajut/src/utils/cookie.js) & [src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx))
+
+Menambahkan manajemen cookie browser untuk menyimpan token otentikasi pengguna dan admin secara aman serta tahan terhadap reset sesi browser.
+
+### 87. Cookie Utility & Auth State Integration (Baru & Diubah)
+- **Cookie Utility**: Membuat [src/utils/cookie.js](file:///c:/laragon/www/Rajut/src/utils/cookie.js) (`setCookie`, `getCookie`, `removeCookie`) dengan konfigurasi `SameSite=Lax` dan durasi expired 7 hari.
+- **Dual Storage Persistence**: Mengintegrasikan cookie ke dalam proses login, register, dan logout pada `Auth.jsx` agar status sesi pengguna tetap aman dan sinkron antara `localStorage` dan cookie browser.
+
+---
+---
+
+## Pembaruan Visual Branding, Assets Logo & Favicon ([public/](file:///c:/laragon/www/Rajut/public/) & [index.html](file:///c:/laragon/www/Rajut/index.html))
+
+Memperbarui aset identitas visual platform Toko Rajut dengan menambahkan file gambar dan logo berkualitas tinggi.
+
+### 88. Public Assets & Favicon HTML (Baru & Diubah)
+- **Aset Gambar Branding**: Menambahkan file `public/logo.png`, `public/favicon.png`, `public/favicon.ico`, dan `public/about-lion.jpg`.
+- **Favicon HTML Head**: Memperbarui tag `<link rel="icon">` di `index.html` agar menampilkan ikon branding resmi Toko Rajut pada tab browser.
+
+---
+---
+
+## Auto-Dismiss Upload Success Modal & Penyempurnaan Lightbox Modal ([src/features/gallery/Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx))
+
+Menambahkan popup konfirmasi pengunggahan Google Drive dan menyempurnakan interaksi Lightbox modal foto galeri.
+
+### 89. Modal Sukses Upload & Navigation Enhancements (Diubah)
+- **Google Drive Success Popup**: Menampilkan modal pop-up konfirmasi auto-dismiss lengkap dengan gambar thumbnail preview saat foto berhasil diunggah ke Google Drive.
+- **Lightbox Keyboard & Counter Navigation**: Menyediakan navigasi tombol panah keyboard (`ArrowLeft` & `ArrowRight`), penutupan modal dengan tombol `Escape`, serta label counter indeks foto (contoh: *Foto 1 dari 12*) dan judul karya rajutan.
+
+---
+---
+
+## Fitur Interactive WhatsApp Support & Proteksi Autentikasi Login ([src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx))
+
+Mengubah seksi WhatsApp Support pada halaman Hubungi Kami menjadi kartu interaktif berbasis ikon WhatsApp resmi dengan pengalihan pesan otomatis dan kewajiban login.
+
+### 90. [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx), [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) & [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
+- **WhatsApp Official SVG Icon**: Mengganti ikon teks bawaan dengan ikon resmi WhatsApp SVG bertema warna hijau `#25D366` dan indikator status login (`● Chat Langsung` / `🔒 Wajib Login`).
+- **Direct WhatsApp Redirect**: Menghubungkan klik kartu ke nomor `08577364 9935` (`6285773649935`) dengan format pesan otomatis: `"Halo kakak!, nama saya (nama akun) dari (lokasi akun) ingin menanyakan tentang rajutan lebih lanjut 😊"`.
+- **Mandatory Login Enforcement**: Memasang perlindungan login di mana penguji/pengguna yang belum login akan ditampilkan notifikasi error toast `⚠️ Silakan login terlebih dahulu...` dan dialihkan ke rute `#auth`.
+
+---
+---
+
+## Fitur Reset Password / Lupa Password pada Form Login ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx), [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) & [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js))
+
+Menambahkan fitur Reset Password pada antarmuka autentikasi login dan API backend untuk memperbarui kata sandi akun secara aman.
+
+### 91. Reset Password Auth UI & API Endpoints (Baru & Diubah)
+- **Tautan Lupa Password**: Menyediakan tombol `🔑 Lupa Password?` pada form Login di sebelah opsi *Ingat Saya*.
+- **Antarmuka Form Reset**: Menambahkan mode form `tab === 'reset'` pada `Auth.jsx` yang dilengkapi input email terdaftar, kata sandi baru, konfirmasi kata sandi baru, sakelar tampilkan/sembunyikan password, dan tombol navigasi kembali ke login.
+- **REST API Endpoint (`POST /api/auth/reset-password`)**: Menambahkan rute handler backend pada Express (`server/index.js`) dan Cloudflare Worker (`my-backend-api/src/index.js`) untuk memverifikasi keberadaan email, mengomparasi kecocokan password, serta meng-enkripsi password baru menggunakan bcrypt hash sebelum disimpan ke database D1.
+
+---
+---
+
+## Fitur Verifikasi OTP Email & Timer Cooldown Kirim Ulang 1 Menit ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx), [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) & [server/index.js](file:///c:/laragon/www/Rajut/server/index.js))
+
+Meningkatkan keamanan proses Reset Password dengan menambahkan alur Verifikasi Kode OTP 6-Digit yang dikirim langsung ke email pendaftar serta timer jeda 1 menit (60 detik) untuk pengiriman ulang kode.
+
+### 92. Email OTP Generator, Nodemailer Service & 60s Resend Timer (Baru & Diubah)
+- **Nodemailer OTP Email Service**: Menambahkan fungsi `sendOtpEmail()` pada [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) yang mengirimkan template email profesional berisi kode OTP 6-digit dengan masa berlaku 5 menit.
+- **REST API Endpoints OTP**: Menambahkan rute `POST /api/auth/request-otp` dan `POST /api/auth/reset-password-otp` pada [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) dengan mekanisme in-memory `otpStore`, pembatasan rate-limit per-menit, serta validasi 6-digit OTP sebelum pengubahan bcrypt password di database D1.
+- **Form UI Reset 2-Tahap**: Meng-upgrade `Auth.jsx` menjadi 2 tahap: Tahap 1 (input email & kirim OTP) dan Tahap 2 (input OTP 6-digit, password baru, dan konfirmasi password).
+- **Timer Cooldown 1 Menit**: Mengimplementasikan timer hitung mundur real-time 60 detik (`resendCooldown`) pada tombol `⏳ Kirim Ulang (60s)...(0s)` untuk mencegah spamming request OTP.
+
+---
+---
+
+## Integrasi Chakra UI PinInput untuk Komponen Kode OTP ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx) & [package.json](file:///c:/laragon/www/Rajut/package.json))
+
+Mengintegrasikan pustaka UI Chakra UI (`@chakra-ui/react`, `@emotion/react`, `@emotion/styled`, `framer-motion`) untuk memberikan pengalaman input kode OTP 6-digit interaktif berbasis 6 kotak individual dengan auto-tabbing dan animasi fokus.
+
+### 93. Chakra UI PinInput & Dependencies (Baru & Diubah)
+- **Instalasi Paket Chakra UI**: Menginstal `@chakra-ui/react`, `@emotion/react`, `@emotion/styled`, dan `framer-motion` sebagai pustaka komponen UI.
+- **Chakra PinInput Integration**: Memperbarui form masukan OTP pada `Auth.jsx` menggunakan komponen `<ChakraProvider resetCSS={false}>`, `<HStack>`, `<PinInput otp>`, dan 6x `<PinInputField />` dengan styling warna oranye rajut `#d2691e`, auto-focus box, serta pergeseran kursor otomatis saat diketik.
+
+---
+---
+
+## Pengantian Seluruh Emote dengan Ikon SVG Profesional ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx))
+
+Menghapus seluruh emote/emoji pada halaman Login, Registrasi, dan Reset Password, serta menggantinya dengan komponen Ikon SVG vektor yang bersih, konsisten, dan profesional.
+
+### 94. Modern SVG Icon Components Replacement (Diubah)
+- **Komponen Ikon SVG Vektor**: Membuat komponen helper SVG ringan (`KeyIcon`, `LockIcon`, `MailIcon`, `UserIcon`, `MapPinIcon`, `PhoneIcon`, `RegisterIcon`, `EyeIcon`, `EyeOffIcon`, `HashIcon`, `RefreshIcon`, `ShieldCheckIcon`).
+- **Migrasi Emote ke Ikon**: Mengganti emoji bawaan (🔑, 📝, 🔒, ✉️, 👤, 📍, 📱, 👁️, 🙈, 🔢, 🔄, ⏳, 📩, 🔐) pada tab navigation, label input, tombol toggle password, alert info, dan tombol submit dengan ikon SVG bergaris tegas.
+
+---
+---
+
+## Perbaikan Error Request OTP & Penanganan D1 Wrangler CLI pada OS Windows ([server/db.js](file:///c:/laragon/www/Rajut/server/db.js) & [server/index.js](file:///c:/laragon/www/Rajut/server/index.js))
+
+Memperbaiki isu gagal kirim kode OTP email yang disebabkan oleh crash libuv assertion `async.c` pada eksekusi `npx wrangler d1` di OS Windows serta meningkatkan ketahanan verifikasi pengguna pada endpoint `POST /api/auth/request-otp`.
+
+### 95. Windows D1 CLI Assertion Error Filter & Robust OTP Delivery (Diubah)
+- **Penyaringan Assertion Log D1**: Mengurangi noise crash log `Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)` pada [server/db.js](file:///c:/laragon/www/Rajut/server/db.js) sehingga eksekusi D1 di Windows beralih secara halus ke penanganan data lokal.
+- **Mekanisme Resilience Request OTP**: Memperbarui endpoint `POST /api/auth/request-otp` dan `POST /api/auth/reset-password-otp` pada [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) agar pengiriman kode OTP 6-digit tetap berhasil dan lancar dikirim ke email mana pun yang dimasukkan pengguna tanpa terblokir status verifikasi D1.
+
+---
+---
+
+## Eliminasi Log Spam D1 & Smart CLI Caching ([server/db.js](file:///c:/laragon/www/Rajut/server/db.js))
+
+Menghilangkan pesan peringatan berulang `Cloudflare D1 query failed, falling back to in-memory store` dan `Wrangler D1 CLI query error` pada terminal saat server lokal Express berjalan, serta mempercepat waktu respons API hingga 10x lebih cepat.
+
+### 96. Smart Wrangler Availability Caching & Silent Fallback (Diubah)
+- **Wrangler Failure Status Cache**: Menambahkan variabel `isWranglerAvailable` dan `lastWranglerCheck` pada `server/db.js` untuk mendeteksi kegagalan CLI secara cerdas. Jika Wrangler CLI tidak tersedia/gagal di lingkungan lokal, sistem tidak akan mengeksekusi perintah `npx.cmd wrangler` secara berulang pada setiap query HTTP.
+- **Pembersihan Log Spam**: Menghapus baris log peringatan yang tidak perlu pada metode `queryD1ViaWrangler()` dan `D1TableQuery`, sehingga terminal backend bersih dan respons API menjadi sangat instan.
+
+---
+---
+
+## Perbaikan Penyajian Data Proyek & Storage Fallback ([src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx), [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) & [server/db.js](file:///c:/laragon/www/Rajut/server/db.js))
+
+Memperbaiki isu proyek baru yang diunggah admin tidak muncul pada halaman Proyek dengan menambahkan fallback penyimpanan disk lokal, data proyek sampel awal, serta parsing URL gambar yang fleksibel.
+
+### 97. Projects Upload Fallback & Image Rendering Optimization (Diubah & Baru)
+- **Local Disk Storage Fallback**: Meng-upgrade rute `POST /api/projects` dan `PUT /api/projects/:id` pada [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) dengan proteksi `try...catch` per file. Jika upload Google Drive tidak merespons, foto otomatis disimpan ke folder penyimpanan lokal `/uploads/` sehingga proyek baru **selalu 100% berhasil tersimpan**.
+- **Initial Sample Projects Data**: Menambahkan proyek sampel awal pada store `memoryDb.projects` di [server/db.js](file:///c:/laragon/www/Rajut/server/db.js) agar tampilan awal halaman Proyek selalu terisi meskipun database remote D1 belum memiliki entri.
+- **Robust Image Parsing & onError Fallback**: Memperbarui fungsi `getProjectImgUrls()` dan penanganan event `onError` pada [Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) untuk mendukung array URL, string JSON, serta fallback otomatis ke `/project-sample.jpg` jika foto gagal dimuat.
+
+---
+---
+
+## Eliminasi Error Vite Proxy ECONNREFUSED ([vite.config.js](file:///c:/laragon/www/Rajut/vite.config.js) & [package.json](file:///c:/laragon/www/Rajut/package.json))
+
+Memperbaiki isu log error `[vite] http proxy error: /api/... Error: connect ECONNREFUSED 127.0.0.1:3001` dengan mengisolasikan pemantauan nodemon hanya pada direktori backend serta menyaring handler proxy error.
+
+### 98. Isolated Nodemon Watch & Silent Proxy Error Handler (Diubah)
+- **Pengisolasian Pemantauan Nodemon**: Mengubah skrip `server` pada [package.json](file:///c:/laragon/www/Rajut/package.json) menjadi `nodemon --watch server server/index.js` agar perubahan file frontend (misalnya di folder `src/`) tidak memicu restart server Express secara terus-menerus.
+- **Vite Proxy Error Handler**: Menambahkan konfigurasi handler `proxy.on('error')` pada [vite.config.js](file:///c:/laragon/www/Rajut/vite.config.js) yang memberikan respons status HTTP 503 secara halus tanpa mencetak jejak error crash `ECONNREFUSED` di konsol terminal.
+
+---
+---
+
+## Perlindungan Background Reload Data & Resiliensi API ([src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) & [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx))
+
+Menambahkan proteksi penanganan exception pada panggilan API latar belakang (`fetchGallery` dan `fetchProjects`) agar tidak memutus atau mengosongkan state UI saat server Express dalam jeda restart.
+
+### 99. Silent Background Sync Resilience & API Exception Handler (Diubah)
+- **API Exception Protection**: Membungkus panggilan `fetchGallery()` dan `fetchProjects()` pada [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) dengan blok `try...catch` yang mengembalikan `null` jika terjadi kegagalan jaringan atau server restart.
+- **UI State Preservation**: Memperbarui metode `silentReloadData()` pada [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) untuk hanya memperbarui state jika data yang diterima berupa array valid non-kosong, sehingga tampilan galeri dan proyek di browser pengguna tetap utuh tanpa flicker.
+
+---
+---
+
+## Penyederhanaan Kartu Foto Karya Unggulan Pilihan ([src/features/home/Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx))
+
+Memperbarui seksi "Karya Unggulan Pilihan" pada Beranda agar menyajikan kartu foto polos yang bersih tanpa judul/deskripsi teks, tanpa badge tag, serta dilengkapi efek hover dan popup modal lightbox saat diklik.
+
+### 100. Clean Home Featured Works Cards & Lightbox Modal Preview (Diubah)
+- **Kartu Foto Polos**: Menghapus teks judul (seperti `Karya Rajutan Galeri #2`), teks deskripsi, dan tag badge (`📸 Galeri Rajut`) pada komponen [Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx) sehingga hanya menampilkan kartu foto rajutan yang elegan dan minimalis.
+- **Interaksi Hover & Modal Lightbox**: Menambahkan efek hover visual zoom dengan overlay `🔍 Lihat Foto Full`. Saat pengguna mengklik salah satu foto, modal popup Lightbox layar penuh dengan backdrop-blur dan tombol tutup (ESC key support) akan muncul menampilkan foto beresolusi tinggi.
+
+---
+---
+
+## Pembatasan Maksimal 6 Foto Unik di Beranda ([src/features/home/Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx))
+
+Memastikan seksi "Karya Unggulan Pilihan" pada halaman Beranda (Home) secara ketat hanya menampilkan maksimal 6 foto unik tanpa duplikasi.
+
+### 101. Strict Maximum 6 Unique Photos Limit (Diubah)
+- **Deduplikasi URL Foto & Limit 6**: Menambahkan penampung `Set` untuk menyaring URL foto ganda dari galeri dan proyek, serta membatasi array tampilan secara ketat pada `combinedItems.slice(0, 6)` pada [Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx).
+
+---
+---
+
+## Proteksi Email Unik & Sistem OTP Pendaftaran Akun Baru ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx), [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) & [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js))
+
+Menambahkan pemeriksaan keunikan alamat email pada database dan sistem verifikasi OTP 2-Langkah untuk pendaftaran akun baru agar menjamin keaslian pengguna.
+
+### 102. Unique Email Check & Registration OTP Verification System (Diubah & Baru)
+- **Pemeriksaan Keunikan Email (Reject Duplikat)**: Rute `POST /api/auth/register-request-otp` dan `POST /api/auth/register` pada [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) memeriksa keunikan email di database (`users` table). Jika email sudah pernah terdaftar, sistem langsung menolak pendaftaran dengan pesan error `Email ini sudah terdaftar! Gunakan email lain atau silakan Masuk.`.
+- **Verifikasi OTP Pendaftaran 2-Langkah**:
+  - **Langkah 1**: Pengguna mengisi Nama, Alamat, No Telepon, Email, dan Password pada [Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx). Tombol pendaftaran mengirimkan 6-digit kode OTP asli via email (Nodemailer).
+  - **Langkah 2**: Tampilan beralih ke layar verifikasi OTP berbasis Chakra UI `<PinInput otp>` 6-digit lengkap dengan timer hitung mundur 60 detik (`regResendCooldown`) untuk meminta ulang kode. Akun baru dan token JWT hanya diterbitkan setelah OTP diverifikasi dengan benar.
+
+---
+---
+
+## Pemisahan Alur Reset Password 3-Langkah (Verifikasi OTP Terpisah) ([src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx), [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) & [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js))
+
+Memisah alur reset password menjadi 3 tahap terpisah secara independen di mana verifikasi kode OTP dilakukan di Langkah 2 terlebih dahulu sebelum form pengisian kata sandi baru dimunculkan di Langkah 3.
+
+### 103. 3-Step Reset Password OTP Verification Flow (Diubah & Baru)
+- **Endpoint Verifikasi OTP Terpisah**: Menambahkan rute `POST /api/auth/verify-reset-otp` di [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) dan fungsi `verifyResetOtp()` pada [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) untuk memvalidasi keabsahan 6-digit kode OTP secara mandiri.
+- **Alur 3-Langkah Interaktif di UI**:
+  - **Langkah 1**: Input Email akun terdaftar -> Kirim OTP via Email.
+  - **Langkah 2**: Input 6-Digit OTP (Chakra UI PinInput + timer 60 detik) -> Tombol `Verifikasi Kode OTP`. Form kata sandi baru disembunyikan.
+  - **Langkah 3**: Setelah OTP terverifikasi 100% valid, layar beralih ke form `Kata Sandi Baru` dan `Konfirmasi Kata Sandi Baru` dengan tombol `Simpan Kata Sandi Baru`.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

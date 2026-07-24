@@ -76,3 +76,39 @@ export async function sendContactEmail({ name, email, message }) {
     throw error
   }
 }
+
+export async function sendOtpEmail({ email, name, otpCode }) {
+  const mailOptions = {
+    from: `"Toko Rajut Security" <${process.env.SMTP_FROM || 'haikaladika8@gmail.com'}>`,
+    to: email,
+    subject: `[${otpCode}] Kode OTP Reset Password Toko Rajut`,
+    text: `Halo ${name || 'Pengguna'},\n\nKode OTP Anda untuk mereset kata sandi Toko Rajut adalah: ${otpCode}\n\nKode ini berlaku selama 5 menit. Jangan berikan kode ini kepada siapapun.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 24px; color: #333; max-width: 520px; border: 1px solid #e2e8f0; border-radius: 16px; background: #ffffff; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h2 style="color: #d2691e; margin: 0; font-size: 1.5rem;">🧶 Toko Rajut</h2>
+          <p style="color: #64748b; font-size: 0.9rem; margin-top: 4px;">Permintaan Reset Kata Sandi Akun</p>
+        </div>
+        <div style="background: #fff7ed; border: 1px solid #ffedd5; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+          <p style="font-size: 0.9rem; color: #475569; margin: 0 0 10px 0;">Gunakan kode OTP berikut untuk mengatur ulang kata sandi Anda:</p>
+          <div style="font-size: 2.2rem; font-weight: 800; color: #d2691e; letter-spacing: 8px; margin: 10px 0;">
+            ${otpCode}
+          </div>
+          <p style="font-size: 0.8rem; color: #94a3b8; margin: 0;">⏱️ Kode ini berlaku selama <strong>5 menit</strong>.</p>
+        </div>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5;">
+          Jika Anda tidak melakukan permintaan reset kata sandi, harap abaikan pesan email ini. Keamanan akun Anda adalah prioritas kami.
+        </p>
+      </div>
+    `
+  }
+
+  try {
+    const info = await transporter.sendMail(mailOptions)
+    console.log(`OTP Email sent to ${email}: ${info.messageId}`)
+    return info
+  } catch (error) {
+    console.error('Failed to send OTP email:', error)
+    throw error
+  }
+}

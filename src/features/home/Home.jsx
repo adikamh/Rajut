@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 
 export default function Home({ isActive, onSectionChange, projects = [], gallery = [], loading }) {
   const [animate, setAnimate] = useState(false)
+  const [selectedImage, setSelectedImage] = useState(null)
 
   const getImgUrl = (item) => {
     if (!item) return ''
@@ -15,56 +16,49 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
     return url.startsWith('/') ? url : `/${url}`
   }
 
-  // Combine items from Gallery and Projects so all uploaded photos appear in Karya Unggulan
+  // Combine items from Gallery and Projects so all uploaded photos appear in Karya Unggulan (Strict max 6 photos)
   const combinedItems = []
+  const seenUrls = new Set()
 
   // Add Gallery items first
   if (gallery && gallery.length > 0) {
     gallery.forEach((item, idx) => {
-      combinedItems.push({
-        id: `gal-${item.id || idx}`,
-        img: getImgUrl(item),
-        title: item.title || `Karya Rajutan Galeri #${idx + 1}`,
-        desc: item.description || 'Karya seni rajutan tangan buatan Toko Rajut yang dibuat dengan penuh kasih sayang.',
-        badge: '📸 Galeri Rajut'
-      })
+      const imgUrl = getImgUrl(item)
+      if (imgUrl && !seenUrls.has(imgUrl)) {
+        seenUrls.add(imgUrl)
+        combinedItems.push({
+          id: `gal-${item.id || idx}`,
+          img: imgUrl
+        })
+      }
     })
   }
 
   // Add Project items
   if (projects && projects.length > 0) {
     projects.forEach((item, idx) => {
-      combinedItems.push({
-        id: `proj-${item.id || idx}`,
-        img: getImgUrl(item),
-        title: item.title || `Proyek Rajut #${idx + 1}`,
-        desc: item.description || 'Koleksi proyek rajutan eksklusif buatan tangan.',
-        badge: '⭐ Featured Proyek'
-      })
+      const imgUrl = getImgUrl(item)
+      if (imgUrl && !seenUrls.has(imgUrl)) {
+        seenUrls.add(imgUrl)
+        combinedItems.push({
+          id: `proj-${item.id || idx}`,
+          img: imgUrl
+        })
+      }
     })
   }
 
   // Fallback default sample works if both gallery & projects are empty
   if (combinedItems.length === 0) {
     combinedItems.push(
-      {
-        id: 'sample-1',
-        img: '/about-lion.jpg',
-        title: 'Boneka Singa Rajut Handcrafted',
-        desc: 'Boneka karakter singa buatan tangan dengan benang katun lembut dan isian premium.',
-        badge: '🧶 Favorit Pelanggan'
-      },
-      {
-        id: 'sample-2',
-        img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop',
-        title: 'Syal Wool Warmth',
-        desc: 'Syal hangat dengan kombinasi warna pastel alami dan tekstur rajut rajutan rapat.',
-        badge: '✨ Koleksi Terbaru'
-      }
+      { id: 'sample-1', img: '/about-lion.jpg' },
+      { id: 'sample-2', img: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=600&auto=format&fit=crop' },
+      { id: 'sample-3', img: '/project-sample.jpg' },
+      { id: 'sample-4', img: '/gallery-knitting-1.jpg' }
     )
   }
 
-  // Display top 6 featured works
+  // Strictly display maximum 6 featured works
   const featuredWorks = combinedItems.slice(0, 6)
 
   useEffect(() => {
@@ -77,6 +71,21 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
       setAnimate(false)
     }
   }, [isActive, projects.length, gallery.length])
+
+  // Close modal on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setSelectedImage(null)
+      }
+    }
+    if (selectedImage) {
+      window.addEventListener('keydown', handleKeyDown)
+    }
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [selectedImage])
 
   return (
     <section id="home" className={`section ${isActive ? 'active' : ''}`}>
@@ -128,7 +137,7 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
         </div>
       </div>
 
-      {/* Featured Works Section */}
+      {/* Featured Works Section - Clean Photo Cards with Lightbox Modal */}
       <div className="featured-works" style={{ paddingTop: '5rem', paddingBottom: '4rem' }}>
         <div className="container">
           <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
@@ -144,45 +153,133 @@ export default function Home({ isActive, onSectionChange, projects = [], gallery
             {featuredWorks.map((work, index) => (
               <div
                 key={work.id || index}
-                className="work-card"
+                className="gallery-item"
+                onClick={() => setSelectedImage(work)}
                 style={{
                   opacity: animate ? 1 : 0,
                   transform: animate ? 'translateY(0)' : 'translateY(24px)',
-                  transition: animate ? `opacity 0.6s ease ${index * 0.15}s, transform 0.6s ease ${index * 0.15}s` : 'none',
+                  transition: animate ? `opacity 0.6s ease ${index * 0.12}s, transform 0.6s ease ${index * 0.12}s` : 'none',
                   borderRadius: '1.25rem',
                   overflow: 'hidden',
                   background: '#ffffff',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.05)',
-                  border: '1px solid rgba(226, 232, 240, 0.8)'
+                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.08)',
+                  border: '1px solid rgba(226, 232, 240, 0.8)',
+                  cursor: 'pointer',
+                  position: 'relative'
                 }}
               >
-                <div style={{ position: 'relative', width: '100%', paddingTop: '75%', overflow: 'hidden' }}>
+                <div className="gallery-image-container" style={{ position: 'relative', width: '100%', paddingTop: '80%', overflow: 'hidden' }}>
                   <img
                     src={work.img}
-                    alt={work.title}
-                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
+                    alt={`Karya Unggulan #${index + 1}`}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover'
+                    }}
                     onError={(e) => {
                       e.target.onerror = null
                       e.target.src = '/about-lion.jpg'
                     }}
                   />
-                  <span className="gallery-badge" style={{ top: '12px', left: '12px', background: 'rgba(210, 105, 30, 0.9)', color: '#ffffff', backdropFilter: 'blur(8px)' }}>
-                    {work.badge || '⭐ Karya Unggulan'}
-                  </span>
-                </div>
-                <div className="work-info" style={{ padding: '1.5rem' }}>
-                  <h3 style={{ fontSize: '1.15rem', color: '#1e293b', marginBottom: '0.5rem', fontWeight: '600' }}>
-                    {work.title}
-                  </h3>
-                  <p style={{ color: '#64748b', fontSize: '0.92rem', lineHeight: '1.5' }}>
-                    {work.desc}
-                  </p>
+                  <div className="gallery-overlay">
+                    <span className="gallery-zoom-icon">
+                      🔍 Lihat Foto Full
+                    </span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      {/* Lightbox Modal for Home Featured Works */}
+      {selectedImage && (
+        <div
+          className="modal-overlay"
+          onClick={() => setSelectedImage(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: 'rgba(15, 23, 42, 0.92)',
+            backdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 10000,
+            padding: '20px',
+            boxSizing: 'border-box'
+          }}
+        >
+          <div
+            className="modal-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '850px',
+              width: '100%',
+              background: '#0f172a',
+              borderRadius: '1.5rem',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setSelectedImage(null)}
+              style={{
+                position: 'absolute',
+                top: '14px',
+                right: '14px',
+                width: '38px',
+                height: '38px',
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.2)',
+                color: '#ffffff',
+                border: '1px solid rgba(255, 255, 255, 0.4)',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 10,
+                transition: 'all 0.2s ease'
+              }}
+              title="Tutup (Escape)"
+            >
+              ✕
+            </button>
+
+            {/* Modal Image */}
+            <img
+              src={selectedImage.img}
+              alt="Preview Foto Karya Unggulan"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+                background: '#0f172a'
+              }}
+              onError={(e) => {
+                e.target.onerror = null
+                e.target.src = '/about-lion.jpg'
+              }}
+            />
+          </div>
+        </div>
+      )}
     </section>
   )
 }
