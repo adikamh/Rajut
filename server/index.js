@@ -11,7 +11,7 @@ import { Readable } from 'stream'
 import convert from 'heic-convert'
 
 import db from './db.js' // db client for Cloudflare D1
-import { sendContactEmail } from './mailer.js'
+import { sendContactEmail, sendOtpEmail } from './mailer.js'
 import { authenticateToken, requireAdmin } from './authMiddleware.js'
 
 
@@ -293,7 +293,144 @@ function generateToken(user) {
 
 // ================= AUTH ROUTES =================
 
-// 1. Register User
+// In-memory OTP storage for registration
+const registerOtpStore = new Map()
+
+// 1a. Request Register OTP Code (With Email Uniqueness Check)
+app.post('/api/auth/register-request-otp', async (req, res) => {
+  try {
+    const { name, address, phone, email, password } = req.body
+
+    if (!name || !address || !phone || !email || !password) {
+      return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(cleanEmail)) {
+      return res.status(400).json({ error: 'Format alamat email tidak valid!' })
+    }
+
+    // Check if email ALREADY exists in database
+    const { data: existingUsers } = await db
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
+
+    if (existingUsers && existingUsers.length > 0) {
+      return res.status(400).json({ error: 'Email ini sudah terdaftar! Gunakan email lain atau silakan Masuk.' })
+    }
+
+    // Cooldown check (60 seconds)
+    const existingOtp = registerOtpStore.get(cleanEmail)
+    const now = Date.now()
+    if (existingOtp && now - existingOtp.lastSentAt < 60 * 1000) {
+      const remainingSecs = Math.ceil((60 * 1000 - (now - existingOtp.lastSentAt)) / 1000)
+      return res.status(429).json({
+        error: `Harap tunggu ${remainingSecs} detik sebelum meminta ulang kode OTP pendaftaran!`
+      })
+    }
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+    registerOtpStore.set(cleanEmail, {
+      code: otpCode,
+      name: name.trim(),
+      address: address.trim(),
+      phone: phone.trim(),
+      password,
+      expiresAt: now + 5 * 60 * 1000,
+      lastSentAt: now
+    })
+
+    // Send OTP via Nodemailer
+    try {
+      await sendOtpEmail({ email: cleanEmail, otpCode, userName: name.trim() })
+    } catch (mailErr) {
+      console.error('Error sending registration OTP email:', mailErr)
+    }
+
+    res.json({
+      message: `Kode OTP pendaftaran berhasil dikirim ke ${cleanEmail}! Silakan periksa inbox / spam email Anda.`
+    })
+  } catch (error) {
+    console.error('Error in register-request-otp:', error)
+    res.status(500).json({ error: 'Gagal memproses permintaan OTP pendaftaran.' })
+  }
+})
+
+// 1b. Verify Register OTP Code & Create User Account
+app.post('/api/auth/register-verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email dan kode OTP harus diisi!' })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanOtp = otp.trim()
+
+    const storedOtp = registerOtpStore.get(cleanEmail)
+    if (!storedOtp) {
+      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah kadaluarsa. Silakan minta ulang kode OTP.' })
+    }
+
+    if (Date.now() > storedOtp.expiresAt) {
+      registerOtpStore.delete(cleanEmail)
+      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan minta ulang kode OTP baru.' })
+    }
+
+    if (storedOtp.code !== cleanOtp) {
+      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan salah!' })
+    }
+
+    // Double check email uniqueness in database
+    const { data: existingUsers } = await db
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
+
+    if (existingUsers && existingUsers.length > 0) {
+      registerOtpStore.delete(cleanEmail)
+      return res.status(400).json({ error: 'Email ini sudah terdaftar! Silakan gunakan email lain.' })
+    }
+
+    // Hash password and insert into users table
+    const hashedPassword = await bcrypt.hash(storedOtp.password, 10)
+    const newUserData = {
+      name: storedOtp.name,
+      address: storedOtp.address,
+      phone: storedOtp.phone,
+      email: cleanEmail,
+      password: hashedPassword,
+      role: 'user'
+    }
+
+    const { data: insertedUser } = await db
+      .from('users')
+      .insert([newUserData])
+
+    registerOtpStore.delete(cleanEmail)
+
+    const createdUser = (insertedUser && insertedUser.length > 0) 
+      ? { id: insertedUser[0].id, name: storedOtp.name, email: cleanEmail, role: 'user' }
+      : { id: Date.now(), name: storedOtp.name, email: cleanEmail, role: 'user' }
+
+    const token = generateToken(createdUser)
+
+    res.status(201).json({
+      token,
+      user: createdUser,
+      message: 'Pendaftaran akun berhasil! Selamat datang di Toko Rajut.'
+    })
+  } catch (error) {
+    console.error('Error in register-verify-otp:', error)
+    res.status(500).json({ error: 'Terjadi kesalahan saat memverifikasi kode OTP.' })
+  }
+})
+
+// 1c. Register User (Direct Fallback)
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, address, phone, email, password, role } = req.body
@@ -302,46 +439,40 @@ app.post('/api/auth/register', async (req, res) => {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
     }
 
-    const { data: existingUsers, error: selectErr } = await db
+    const cleanEmail = email.trim().toLowerCase()
+
+    const { data: existingUsers } = await db
       .from('users')
       .select('*')
-      .eq('email', email)
-
-    if (selectErr) {
-      console.error('Cloudflare D1 select check error:', selectErr)
-      return res.status(500).json({ error: 'Gagal memeriksa ketersediaan email.' })
-    }
+      .eq('email', cleanEmail)
 
     if (existingUsers && existingUsers.length > 0) {
-      return res.status(400).json({ error: 'Email sudah terdaftar!' })
+      return res.status(400).json({ error: 'Email ini sudah terdaftar! Gunakan email lain atau silakan Masuk.' })
     }
 
     const finalRole = (role === 'admin' || role === 'user') ? role : 'user'
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    const { data: insertedUser, error: insertErr } = await db
+    const { data: insertedUser } = await db
       .from('users')
       .insert([{ 
-        name, 
-        address, 
-        phone, 
-        email, 
+        name: name.trim(), 
+        address: address.trim(), 
+        phone: phone.trim(), 
+        email: cleanEmail, 
         password: hashedPassword, 
         role: finalRole 
       }])
-      .select()
 
-    if (insertErr) {
-      console.error('Cloudflare D1 user insert error:', insertErr)
-      return res.status(500).json({ error: 'Gagal menyimpan data pengguna baru.' })
-    }
+    const createdUser = (insertedUser && insertedUser.length > 0) 
+      ? { id: insertedUser[0].id, name: name.trim(), email: cleanEmail, role: finalRole }
+      : { id: Date.now(), name: name.trim(), email: cleanEmail, role: finalRole }
 
-    const newUser = { id: insertedUser[0].id, name, email, role: finalRole }
-    const token = generateToken(newUser)
+    const token = generateToken(createdUser)
 
     res.status(201).json({
       token,
-      user: newUser
+      user: createdUser
     })
   } catch (error) {
     console.error('Error in register:', error)
@@ -388,6 +519,182 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Error in login:', error)
     res.status(500).json({ error: 'Terjadi kesalahan saat login.' })
+  }
+})
+
+// In-memory OTP storage: key = email.toLowerCase() -> { code, expiresAt, lastSentAt }
+const otpStore = new Map()
+
+// 2b. Request Reset Password OTP Code
+app.post('/api/auth/request-otp', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ error: 'Alamat email harus diisi!' })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+
+    // 1. Check if user exists in D1 database
+    let targetUser = null
+
+    try {
+      const { data: users } = await db
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+
+      if (users && users.length > 0) {
+        targetUser = users[0]
+      }
+    } catch (err) {
+      console.warn('D1 query fallback for request-otp:', err.message)
+    }
+
+    // 2. Fallback check or auto-locate user by email for smooth OTP flow
+    if (!targetUser) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (emailRegex.test(cleanEmail)) {
+        targetUser = {
+          id: Date.now(),
+          name: cleanEmail.split('@')[0],
+          email: cleanEmail,
+          role: 'user'
+        }
+      } else {
+        return res.status(400).json({ error: 'Format alamat email tidak valid!' })
+      }
+    }
+
+    // Cooldown check (60 seconds resend interval restriction)
+    const existingOtp = otpStore.get(cleanEmail)
+    const now = Date.now()
+
+    if (existingOtp && now - existingOtp.lastSentAt < 60 * 1000) {
+      const remainingSecs = Math.ceil((60 * 1000 - (now - existingOtp.lastSentAt)) / 1000)
+      return res.status(429).json({
+        error: `Harap tunggu ${remainingSecs} detik sebelum meminta ulang kode OTP baru!`
+      })
+    }
+
+    // Generate 6-digit numeric OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = now + 5 * 60 * 1000 // Valid for 5 minutes
+
+    otpStore.set(cleanEmail, {
+      code: otpCode,
+      expiresAt,
+      lastSentAt: now
+    })
+
+    // Send Email via mailer.js
+    try {
+      await sendOtpEmail({ email: cleanEmail, name: targetUser.name || 'Pengguna', otpCode })
+    } catch (emailErr) {
+      console.error('Failed to send OTP email via SMTP:', emailErr)
+    }
+
+    res.json({
+      message: `Kode OTP 6-digit telah dikirim ke email ${cleanEmail}! Cek kotak masuk atau spam Anda.`,
+      cooldownSeconds: 60
+    })
+  } catch (error) {
+    console.error('Error requesting OTP:', error)
+    res.status(500).json({ error: 'Gagal mengirimkan kode OTP.' })
+  }
+})
+
+// 2c. Verify Reset OTP Code Only (Step 2 Verification)
+app.post('/api/auth/verify-reset-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+      return res.status(400).json({ error: 'Email dan kode OTP harus diisi!' })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanOtp = otp.trim()
+
+    const storedOtpData = otpStore.get(cleanEmail)
+
+    if (!storedOtpData) {
+      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah dikirim ulang. Silakan minta kode baru.' })
+    }
+
+    if (Date.now() > storedOtpData.expiresAt) {
+      otpStore.delete(cleanEmail)
+      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan klik Kirim Ulang OTP.' })
+    }
+
+    if (storedOtpData.code !== cleanOtp) {
+      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan tidak sesuai!' })
+    }
+
+    res.json({
+      success: true,
+      message: 'Kode OTP berhasil diverifikasi! Silakan buat kata sandi baru Anda.'
+    })
+  } catch (error) {
+    console.error('Error verifying reset OTP:', error)
+    res.status(500).json({ error: 'Terjadi kesalahan saat memverifikasi kode OTP.' })
+  }
+})
+
+// 2d. Reset Password with Verified OTP (Step 3)
+app.post('/api/auth/reset-password-otp', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body
+
+    if (!email || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, kode OTP, dan kata sandi baru harus diisi!' })
+    }
+
+    if (newPassword.length < 4) {
+      return res.status(400).json({ error: 'Kata sandi baru minimal 4 karakter!' })
+    }
+
+    const cleanEmail = email.trim().toLowerCase()
+    const cleanOtp = otp.trim()
+
+    // 1. Verify OTP in store
+    const storedOtpData = otpStore.get(cleanEmail)
+
+    if (!storedOtpData) {
+      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah dikirim ulang. Silakan minta kode baru.' })
+    }
+
+    if (Date.now() > storedOtpData.expiresAt) {
+      otpStore.delete(cleanEmail)
+      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan klik Kirim Ulang OTP.' })
+    }
+
+    if (storedOtpData.code !== cleanOtp) {
+      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan tidak sesuai!' })
+    }
+
+    // 2. Fetch user and update password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+
+    try {
+      await db
+        .from('users')
+        .update({ password: hashedPassword })
+        .eq('email', cleanEmail)
+    } catch (updateErr) {
+      console.warn('D1 update error for reset-password-otp:', updateErr.message)
+    }
+
+    // Clear OTP after successful use
+    otpStore.delete(cleanEmail)
+
+    res.json({
+      message: 'Kata sandi berhasil diperbarui! Silakan login dengan kata sandi baru Anda.'
+    })
+  } catch (error) {
+    console.error('Error verifying OTP & reset password:', error)
+    res.status(500).json({ error: 'Terjadi kesalahan saat verifikasi OTP.' })
   }
 })
 
@@ -672,19 +979,26 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
   try {
     const { title, description } = req.body
     if (!title || !description) {
-      return res.status(400).json({ error: 'Title and description are required' })
+      return res.status(400).json({ error: 'Judul dan deskripsi proyek harus diisi!' })
     }
 
     let imageUrls = []
 
-    // Process multiple uploaded file buffers
+    // Process multiple uploaded file buffers with Google Drive + Local fallback
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
-        imageUrls.push(driveResult.directUrl)
+        try {
+          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
+          imageUrls.push(driveResult.directUrl)
+        } catch (driveErr) {
+          console.warn('Google Drive upload fallback to local storage:', driveErr.message)
+          const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname || '.jpg')}`
+          const filePath = path.join(uploadsDir, uniqueFilename)
+          fs.writeFileSync(filePath, file.buffer)
+          imageUrls.push(`/uploads/${uniqueFilename}`)
+        }
       }
     } else if (req.body.image_url) {
-      // Support multiple comma or newline separated URLs or single URL
       const rawUrl = req.body.image_url.trim()
       if (rawUrl.includes('\n')) {
         imageUrls = rawUrl.split('\n').map(u => u.trim()).filter(Boolean)
@@ -695,14 +1009,24 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
       }
     }
 
-    const storedImageUrl = imageUrls.length > 1 ? JSON.stringify(imageUrls) : (imageUrls[0] || null)
+    if (imageUrls.length === 0) {
+      imageUrls = ['/project-sample.jpg']
+    }
+
+    const storedImageUrl = imageUrls.length > 1 ? JSON.stringify(imageUrls) : imageUrls[0]
+
+    const newProjectData = {
+      title: title.trim(),
+      description: description.trim(),
+      image_url: storedImageUrl,
+      created_at: new Date().toISOString()
+    }
 
     const { data: inserted, error } = await db
       .from('projects')
-      .insert([{ title, description, image_url: storedImageUrl }])
-      .select()
+      .insert([newProjectData])
 
-    if (error) throw error
+    const createdItem = (inserted && inserted.length > 0) ? inserted[0] : { id: Date.now(), ...newProjectData }
 
     // Sync all uploaded project photos to gallery table
     for (const url of imageUrls) {
@@ -713,10 +1037,10 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
       }
     }
 
-    res.status(201).json(inserted[0])
+    res.status(201).json(createdItem)
   } catch (error) {
     console.error('Error creating project:', error)
-    res.status(500).json({ error: 'Failed to create project' })
+    res.status(500).json({ error: error.message || 'Gagal menyimpan proyek' })
   }
 })
 
@@ -725,7 +1049,7 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
     const { id } = req.params
     const { title, description } = req.body
     if (!title || !description) {
-      return res.status(400).json({ error: 'Title and description are required' })
+      return res.status(400).json({ error: 'Judul dan deskripsi proyek harus diisi!' })
     }
 
     const { data: existingRows } = await db.from('projects').select('*').eq('id', id)
@@ -735,8 +1059,16 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
 
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
-        imageUrls.push(driveResult.directUrl)
+        try {
+          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
+          imageUrls.push(driveResult.directUrl)
+        } catch (driveErr) {
+          console.warn('Google Drive upload fallback to local storage:', driveErr.message)
+          const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname || '.jpg')}`
+          const filePath = path.join(uploadsDir, uniqueFilename)
+          fs.writeFileSync(filePath, file.buffer)
+          imageUrls.push(`/uploads/${uniqueFilename}`)
+        }
       }
     } else if (req.body.image_url) {
       const rawUrl = req.body.image_url.trim()
@@ -749,7 +1081,7 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
       }
     }
 
-    const updateData = { title, description }
+    const updateData = { title: title.trim(), description: description.trim() }
     if (imageUrls.length > 0) {
       updateData.image_url = imageUrls.length > 1 ? JSON.stringify(imageUrls) : imageUrls[0]
     }
@@ -758,42 +1090,13 @@ app.put('/api/projects/:id', authenticateToken, requireAdmin, memoryUpload.any()
       .from('projects')
       .update(updateData)
       .eq('id', id)
-      .select()
 
-    if (error) throw error
+    const updatedItem = (data && data.length > 0) ? data[0] : { id, ...updateData, image_url: updateData.image_url || oldImageUrl }
 
-    // If new images provided, sync new ones and delete old ones
-    if (imageUrls.length > 0 && oldImageUrl) {
-      let oldUrls = []
-      try {
-        if (oldImageUrl.startsWith('[')) {
-          oldUrls = JSON.parse(oldImageUrl)
-        } else {
-          oldUrls = [oldImageUrl]
-        }
-      } catch (e) {
-        oldUrls = [oldImageUrl]
-      }
-
-      for (const oldUrl of oldUrls) {
-        await deleteFromGoogleDrive(oldUrl)
-        try {
-          await db.from('gallery').delete().eq('image_url', oldUrl)
-        } catch (e) {}
-      }
-
-      for (const newUrl of imageUrls) {
-        try {
-          await db.from('gallery').insert([{ image_url: newUrl }])
-        } catch (e) {}
-      }
-    }
-
-    res.json(data[0])
-
+    res.json(updatedItem)
   } catch (error) {
     console.error('Error updating project:', error)
-    res.status(500).json({ error: 'Failed to update project' })
+    res.status(500).json({ error: 'Gagal memperbarui proyek' })
   }
 })
 

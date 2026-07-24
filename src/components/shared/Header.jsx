@@ -42,8 +42,8 @@ export default function Header({ activeSection, onSectionChange, user, onLogout 
           <div className="header-content">
             <div className="logo">
               <a href="#home" onClick={(e) => handleLinkClick(e, 'home')} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <img src="/logo.png" alt="Toko Rajut Logo" style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #ffedd5', boxShadow: '0 2px 8px rgba(210, 105, 30, 0.2)' }} />
-                <span style={{ fontWeight: '700', fontSize: '1.25rem', color: '#1e293b' }}>Toko Rajut</span>
+                <img src="/logo.png" alt="Dude Craft Logo" style={{ width: '38px', height: '38px', borderRadius: '10px', objectFit: 'cover', border: '1px solid #ffedd5', boxShadow: '0 2px 8px rgba(210, 105, 30, 0.2)' }} />
+                <span style={{ fontWeight: '700', fontSize: '1.25rem', color: '#1e293b' }}>Dude Craft</span>
               </a>
             </div>
 

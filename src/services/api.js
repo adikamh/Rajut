@@ -53,17 +53,94 @@ export async function registerUser(userData) {
   })
 
   if (!response.ok) {
-    await handleResponseError(response, 'Gagal daftar')
+    await handleResponseError(response, 'Gagal pendaftaran')
+  }
+  return response.json()
+}
+
+export async function requestRegisterOtp(userData) {
+  const response = await fetch(`${API_BASE_URL}/auth/register-request-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(userData)
+  })
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal meminta OTP pendaftaran')
+  }
+  return response.json()
+}
+
+export async function verifyRegisterOtp(email, otp) {
+  const response = await fetch(`${API_BASE_URL}/auth/register-verify-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, otp })
+  })
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal memverifikasi OTP pendaftaran')
+  }
+  return response.json()
+}
+
+export async function requestOtp(email) {
+  const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email })
+  })
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal meminta kode OTP')
+  }
+  return response.json()
+}
+
+export async function verifyResetOtp(email, otp) {
+  const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, otp })
+  })
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal memverifikasi kode OTP reset password')
+  }
+  return response.json()
+}
+
+export async function resetPasswordWithOtp(email, otp, newPassword) {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password-otp`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ email, otp, newPassword })
+  })
+
+  if (!response.ok) {
+    await handleResponseError(response, 'Gagal mereset kata sandi dengan OTP')
   }
   return response.json()
 }
 
 export async function fetchGallery() {
-  const response = await fetch(`${API_BASE_URL}/gallery`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch gallery')
+  try {
+    const response = await fetch(`${API_BASE_URL}/gallery`)
+    if (!response.ok) return null
+    return await response.json()
+  } catch (err) {
+    return null
   }
-  return response.json()
 }
 
 export async function uploadGalleryImage(imageFileOrUrl, isFile = false) {
@@ -96,11 +173,13 @@ export async function uploadGalleryImage(imageFileOrUrl, isFile = false) {
 }
 
 export async function fetchProjects() {
-  const response = await fetch(`${API_BASE_URL}/projects`)
-  if (!response.ok) {
-    throw new Error('Failed to fetch projects')
+  try {
+    const response = await fetch(`${API_BASE_URL}/projects`)
+    if (!response.ok) return null
+    return await response.json()
+  } catch (err) {
+    return null
   }
-  return response.json()
 }
 
 export async function createProject(title, description, imageFilesOrUrl, isFile = false) {

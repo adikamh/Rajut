@@ -56,11 +56,11 @@ export default function App() {
   const silentReloadData = async () => {
     try {
       const [gal, proj] = await Promise.all([fetchGallery(), fetchProjects()])
-      setGallery(gal)
-      setProjects(proj)
+      if (gal && Array.isArray(gal) && gal.length > 0) setGallery(gal)
+      if (proj && Array.isArray(proj) && proj.length > 0) setProjects(proj)
       setError(null)
     } catch (err) {
-      console.error('Silent background sync error:', err)
+      // Ignore background sync errors when server is restarting
     }
   }
 
@@ -219,7 +219,7 @@ export default function App() {
           user={user}
         />
         <About isActive={activeSection === 'about'} user={user} />
-        <Contact isActive={activeSection === 'contact'} user={user} />
+        <Contact isActive={activeSection === 'contact'} user={user} onSectionChange={changeSection} />
         <Auth
           isActive={activeSection === 'auth'}
           onLoginSuccess={handleLoginSuccess}

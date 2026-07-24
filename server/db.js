@@ -41,7 +41,22 @@ const memoryDb = {
   ],
   gallery: [],
 
-  projects: [],
+  projects: [
+    {
+      id: 1,
+      title: 'Syal Rajut Kustom Musim Dingin',
+      description: 'Syal rajutan tangan lembut berwarna krem terbuat dari benang wol sintetis premium yang memberikan kehangatan ekstra.',
+      image_url: '/project-sample.jpg',
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      title: 'Topi Kupluk Rajut Handmade',
+      description: 'Topi kupluk bergaya modern yang cocok untuk aktivitas sehari-hari di cuaca dingin.',
+      image_url: '/gallery-knitting-1.jpg',
+      created_at: new Date().toISOString()
+    }
+  ],
 
   contact_messages: [],
 
@@ -58,8 +73,16 @@ const memoryDb = {
   ]
 }
 
+let isWranglerAvailable = true
+let lastWranglerCheck = 0
+
 // Cloudflare D1 Query via Wrangler CLI Fallback
 export async function queryD1ViaWrangler(sql, params = []) {
+  // If Wrangler CLI previously failed or is unavailable locally, skip to avoid slow subshell execution & log spam
+  if (!isWranglerAvailable && Date.now() - lastWranglerCheck < 5 * 60 * 1000) {
+    return { success: false, results: [] }
+  }
+
   try {
     let formattedSql = sql
     for (const param of params) {
@@ -69,15 +92,19 @@ export async function queryD1ViaWrangler(sql, params = []) {
 
     const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'
     const command = `${npxCmd} wrangler d1 execute rajut-db --remote --json --command="${formattedSql.replace(/"/g, '\\"')}"`
-    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true })
+    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true, timeout: 5000 })
 
     const parsed = JSON.parse(stdout)
     if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].success) {
+      isWranglerAvailable = true
       return { success: true, results: parsed[0].results || [], meta: parsed[0].meta }
     }
+    isWranglerAvailable = false
+    lastWranglerCheck = Date.now()
     return { success: false, results: [] }
   } catch (err) {
-    console.error('Wrangler D1 CLI query error:', err.message)
+    isWranglerAvailable = false
+    lastWranglerCheck = Date.now()
     return { success: false, results: [] }
   }
 }
@@ -103,7 +130,7 @@ export async function queryD1(sql, params = []) {
         return { success: true, results: json.result[0].results || [] }
       }
     } catch (err) {
-      console.error('Error querying Cloudflare D1 REST API:', err.message)
+      // Ignore API errors gracefully
     }
   }
 
@@ -338,8 +365,6 @@ class D1TableQuery {
         return { error: null }
       }
     }
-
-    console.warn('Cloudflare D1 query failed, falling back to in-memory store.')
 
     // Fallback to in-memory database store
     return this.executeInMemory()

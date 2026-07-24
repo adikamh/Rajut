@@ -154,12 +154,14 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
     }
   }
 
-  const getProjectImgUrls = (proj, index) => {
+  const getProjectImgUrls = (proj) => {
     if (proj && proj.image_url) {
       let rawUrls = []
       try {
         if (typeof proj.image_url === 'string' && proj.image_url.startsWith('[')) {
           rawUrls = JSON.parse(proj.image_url)
+        } else if (Array.isArray(proj.image_url)) {
+          rawUrls = proj.image_url
         } else {
           rawUrls = [proj.image_url]
         }
@@ -167,18 +169,21 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
         rawUrls = [proj.image_url]
       }
 
-      return rawUrls.map(url => {
-        const driveMatch = url.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
+      const formatted = rawUrls.map(url => {
+        if (!url) return '/project-sample.jpg'
+        const urlStr = String(url).trim()
+        const driveMatch = urlStr.match(/(?:id=|\/d\/|file\/d\/|drive-image\/)([a-zA-Z0-9_-]{25,})/)
         if (driveMatch && driveMatch[1]) {
           return `/api/drive-image/${driveMatch[1]}`
         }
-        if (url.startsWith('http')) return url
-        return url.startsWith('/') ? url : `/${url}`
-      })
+        if (urlStr.startsWith('http')) return urlStr
+        return urlStr.startsWith('/') ? urlStr : `/${urlStr}`
+      }).filter(Boolean)
 
+      return formatted.length > 0 ? formatted : ['/project-sample.jpg']
     }
 
-    return []
+    return ['/project-sample.jpg']
   }
 
   const modalOverlayStyle = {
@@ -346,10 +351,11 @@ export default function Projects({ isActive, projectsList = [], onAddProject, on
               >
                 <div className="gallery-image-container" style={{ paddingTop: '75%' }}>
                   <img 
-                    src={coverUrl} 
+                    src={coverUrl || '/project-sample.jpg'} 
                     alt={project.title} 
                     onError={(e) => {
                       e.target.onerror = null
+                      e.target.src = '/project-sample.jpg'
                     }}
                   />
                   <span className="gallery-badge">📦 Proyek</span>

@@ -149,6 +149,29 @@ export default {
 				return jsonResponse({ token, user: matchedUser });
 			}
 
+			if (path === '/api/auth/reset-password' && method === 'POST') {
+				const body = await request.json();
+				const { email, newPassword } = body;
+
+				if (!email || !newPassword) {
+					return errorResponse('Email dan kata sandi baru harus diisi!');
+				}
+
+				if (newPassword.length < 4) {
+					return errorResponse('Kata sandi baru minimal 4 karakter!');
+				}
+
+				const user = await env.DB.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').bind(email).first();
+				if (!user) {
+					return errorResponse('Alamat email tidak terdaftar dalam sistem!', 404);
+				}
+
+				const hashedPassword = bcrypt.hashSync(newPassword, 10);
+				await env.DB.prepare('UPDATE users SET password = ? WHERE id = ?').bind(hashedPassword, user.id).run();
+
+				return jsonResponse({ message: 'Kata sandi berhasil diperbarui! Silakan login dengan password baru Anda.' });
+			}
+
 			// ================= 3. GALLERY ROUTES =================
 			if (path === '/api/gallery' && method === 'GET') {
 				const { results: galleryRows } = await env.DB.prepare('SELECT * FROM gallery ORDER BY id DESC').all();

@@ -1103,9 +1103,19 @@ p { margin-bottom: 1rem; line-height: 1.6; }
     right: -12px;
     width: 34px;
     height: 34px;
-    font-size: 1rem;
   }
 }
+
+.whatsapp-contact-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 15px 30px -5px rgba(37, 211, 102, 0.25) !important;
+  border-color: #128c7e !important;
+}
+
+.whatsapp-contact-card:active {
+  transform: translateY(0);
+}
+
 
 
 
