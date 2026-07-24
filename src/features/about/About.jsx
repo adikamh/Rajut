@@ -3,6 +3,71 @@ import Button from '../../components/ui/Button'
 import { fetchAboutContent, updateAboutContent } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 
+const StarIcon = ({ size = 16, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+)
+
+const EditIcon = ({ size = 16, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+    <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+  </svg>
+)
+
+const YarnIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', margin: '0 auto' }}>
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10" />
+    <path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10" />
+    <path d="M2 12h20" />
+  </svg>
+)
+
+const HeartIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', margin: '0 auto' }}>
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+)
+
+const PaletteIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', margin: '0 auto' }}>
+    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 2.21.896 4.21 2.344 5.656C4.83 18.14 5 18.77 5 19.5c0 1.38 1.12 2.5 2.5 2.5h4.5z" />
+    <circle cx="7.5" cy="10.5" r="1.5" />
+    <circle cx="11.5" cy="7.5" r="1.5" />
+    <circle cx="16.5" cy="9.5" r="1.5" />
+    <circle cx="15.5" cy="14.5" r="1.5" />
+  </svg>
+)
+
+const SparkleIcon = () => (
+  <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', margin: '0 auto' }}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+)
+
+const FileIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </svg>
+)
+
+const LinkIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+  </svg>
+)
+
+const SaveIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+)
+
 export default function About({ isActive, user }) {
   const { showToast } = useNotification()
   
@@ -12,7 +77,7 @@ export default function About({ isActive, user }) {
     paragraph1: 'Selamat datang di Toko Rajut. Kami percaya bahwa setiap produk rajutan memiliki jiwa dan cerita tersendiri. Kami mengkhususkan diri dalam pembuatan karya rajut tangan eksklusif seperti syal, topi, selimut bayi, hingga dekorasi rumah.',
     paragraph2: 'Setiap pasang tangan perajin kami merajut dengan teknik tradisional yang dipadukan dengan sentuhan estetika modern untuk menghadirkan produk berkualitas tinggi yang hangat dan penuh makna.',
     image_url: '/about-lion.jpg',
-    badge_text: '⭐ Terpercaya Sejak 2024'
+    badge_text: 'Terpercaya Sejak 2024'
   })
 
   const [isEditing, setIsEditing] = useState(false)
@@ -56,7 +121,7 @@ export default function About({ isActive, user }) {
   const handleSaveAbout = async (e) => {
     e.preventDefault()
     setSaving(true)
-    showToast('☁️ Menyimpan perubahan ke Cloudflare D1 & Drive...', 'loading', 0)
+    showToast('Menyimpan perubahan ke Cloudflare D1 & Drive...', 'loading', 0)
 
     try {
       let result
@@ -87,7 +152,7 @@ export default function About({ isActive, user }) {
         await loadAboutData()
       }
 
-      showToast('✅ Halaman Tentang Kami berhasil diperbarui!', 'success')
+      showToast('Halaman Tentang Kami berhasil diperbarui!', 'success')
       setIsEditing(false)
     } catch (err) {
       console.error(err)
@@ -111,22 +176,22 @@ export default function About({ isActive, user }) {
 
   const values = [
     {
-      icon: '🧶',
+      icon: <YarnIcon />,
       title: 'Kualitas Premium',
       desc: 'Menggunakan benang pilihan yang lembut, nyaman di kulit, dan tahan lama.'
     },
     {
-      icon: '❤️',
+      icon: <HeartIcon />,
       title: '100% Buatan Tangan',
       desc: 'Dibuat penuh ketelitian dan kasih sayang oleh perajin rajut berpengalaman.'
     },
     {
-      icon: '🎨',
+      icon: <PaletteIcon />,
       title: 'Desain Custom',
       desc: 'Menerima pesanan custom warna, ukuran, dan pola sesuai dengan keinginan Anda.'
     },
     {
-      icon: '✨',
+      icon: <SparkleIcon />,
       title: 'Sentuhan Estetis',
       desc: 'Kombinasi warna dan tekstur modern yang elegan untuk berbagai kesempatan.'
     }
@@ -194,7 +259,7 @@ export default function About({ isActive, user }) {
                   transition: 'transform 0.2s ease'
                 }}
               >
-                ✏️ Edit Halaman Tentang Kami (Admin)
+                <EditIcon color="#ffffff" /> Edit Halaman Tentang Kami (Admin)
               </button>
             </div>
           )}
@@ -225,9 +290,12 @@ export default function About({ isActive, user }) {
               fontWeight: '600',
               color: '#d2691e',
               border: '1px solid #e2e8f0',
-              zIndex: 2
+              zIndex: 2,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
             }}>
-              {aboutData.badge_text || '⭐ Terpercaya Sejak 2024'}
+              <StarIcon color="#d2691e" /> {aboutData.badge_text || 'Terpercaya Sejak 2024'}
             </div>
             <img
               src={getFullImgUrl(aboutData.image_url)}
@@ -259,10 +327,13 @@ export default function About({ isActive, user }) {
                 boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)',
                 border: '1px solid rgba(226, 232, 240, 0.8)',
                 textAlign: 'center',
-                transition: 'transform 0.3s ease'
+                transition: 'transform 0.3s ease',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
               }}
             >
-              <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{v.icon}</div>
+              <div style={{ marginBottom: '1rem' }}>{v.icon}</div>
               <h4 style={{ fontSize: '1.1rem', color: '#1e293b', marginBottom: '0.5rem', fontWeight: '600' }}>
                 {v.title}
               </h4>
@@ -279,7 +350,7 @@ export default function About({ isActive, user }) {
         <div style={modalOverlayStyle} onClick={() => setIsEditing(false)}>
           <div style={modalContentStyle} onClick={(e) => e.stopPropagation()}>
             <h3 style={{ fontSize: '1.3rem', color: '#d2691e', marginBottom: '1.25rem', textAlign: 'center', fontWeight: '700' }}>
-              ✏️ Edit Konten Halaman Tentang Kami
+              <EditIcon color="#d2691e" /> Edit Konten Halaman Tentang Kami
             </h3>
 
             <form onSubmit={handleSaveAbout}>
@@ -333,7 +404,7 @@ export default function About({ isActive, user }) {
                   type="text"
                   value={editBadge}
                   onChange={(e) => setEditBadge(e.target.value)}
-                  placeholder="⭐ Terpercaya Sejak 2024"
+                  placeholder="Terpercaya Sejak 2024"
                   required
                 />
               </div>
@@ -349,14 +420,14 @@ export default function About({ isActive, user }) {
                     className={`mode-pill-btn ${editMode === 'file' ? 'active' : ''}`}
                     onClick={() => setEditMode('file')}
                   >
-                    📁 Unggah Foto Baru ke Drive
+                    <FileIcon /> Unggah Foto Baru ke Drive
                   </button>
                   <button
                     type="button"
                     className={`mode-pill-btn ${editMode === 'url' ? 'active' : ''}`}
                     onClick={() => setEditMode('url')}
                   >
-                    🔗 Gunakan URL / Foto Lokal
+                    <LinkIcon /> Gunakan URL / Foto Lokal
                   </button>
                 </div>
 
@@ -379,7 +450,7 @@ export default function About({ isActive, user }) {
 
               <div style={{ display: 'flex', gap: '1rem' }}>
                 <Button type="submit" disabled={saving} style={{ flex: 1 }}>
-                  {saving ? 'Menyimpan...' : '💾 Simpan ke Cloudflare D1'}
+                  {saving ? 'Menyimpan...' : <><SaveIcon /> Simpan ke Cloudflare D1</>}
                 </Button>
                 <button
                   type="button"

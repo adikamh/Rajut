@@ -3,6 +3,41 @@ import Button from '../../components/ui/Button'
 import { submitContact } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 
+const MailIcon = ({ size = 18, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '8px' }}>
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
+  </svg>
+)
+
+const SendIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '6px' }}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+)
+
+const LockIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', marginRight: '4px' }}>
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+  </svg>
+)
+
+const MapPinIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+    <circle cx="12" cy="10" r="3" />
+  </svg>
+)
+
+const ClockIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+)
+
 export default function Contact({ isActive, user, onSectionChange }) {
   const { showToast } = useNotification()
   const [formData, setFormData] = useState({
@@ -34,7 +69,7 @@ export default function Contact({ isActive, user, onSectionChange }) {
     e.preventDefault()
 
     if (!user) {
-      showToast('⚠️ Silakan login terlebih dahulu untuk menghubungi WhatsApp Support!', 'error')
+      showToast('Silakan login terlebih dahulu untuk menghubungi WhatsApp Support!', 'error')
       if (onSectionChange) {
         onSectionChange('auth')
       } else {
@@ -46,7 +81,7 @@ export default function Contact({ isActive, user, onSectionChange }) {
     const namaAkun = user.name || user.username || user.email || 'Pengguna'
     const lokasiAkun = user.address || user.location || user.city || 'Indonesia'
 
-    const messageText = `Halo kakak!, nama saya ${namaAkun} dari ${lokasiAkun} ingin menanyakan tentang rajutan lebih lanjut 😊`
+    const messageText = `Halo kakak!, nama saya ${namaAkun} dari ${lokasiAkun} ingin menanyakan tentang rajutan lebih lanjut`
     const waNumber = '6285773649935'
     const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(messageText)}`
 
@@ -102,7 +137,7 @@ export default function Contact({ isActive, user, onSectionChange }) {
             border: '1px solid rgba(226, 232, 240, 0.8)'
           }}>
             <h3 style={{ fontSize: '1.25rem', color: '#d2691e', marginBottom: '1.5rem', fontWeight: '600' }}>
-              ✉️ Kirim Pesan / Pertanyaan
+              <MailIcon /> Kirim Pesan / Pertanyaan
             </h3>
             <form id="contactForm" onSubmit={handleSubmit}>
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
@@ -145,7 +180,7 @@ export default function Contact({ isActive, user, onSectionChange }) {
               </div>
 
               <Button type="submit" disabled={submitting} style={{ width: '100%', padding: '14px', borderRadius: '10px' }}>
-                {submitting ? 'Mengirim Pesan...' : '🚀 Kirim Pesan Sekarang'}
+                {submitting ? 'Mengirim Pesan...' : <><SendIcon /> Kirim Pesan Sekarang</>}
               </Button>
             </form>
           </div>
@@ -153,8 +188,8 @@ export default function Contact({ isActive, user, onSectionChange }) {
           {/* Contact Details Info Card */}
           <div className="contact-info" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fff3eb', color: '#d2691e', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}>
-                📧
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fff3eb', color: '#d2691e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MailIcon size={22} color="#d2691e" />
               </div>
               <div>
                 <h4 style={{ fontSize: '1rem', color: '#1e293b', marginBottom: '2px', fontWeight: '600' }}>Email Resmi</h4>
@@ -211,7 +246,7 @@ export default function Contact({ isActive, user, onSectionChange }) {
                     color: user ? '#15803d' : '#b91c1c',
                     border: user ? '1px solid #bbf7d0' : '1px solid #fecaca'
                   }}>
-                    {user ? '● Chat Langsung' : '🔒 Wajib Login'}
+                    {user ? '● Chat Langsung' : <><LockIcon /> Wajib Login</>}
                   </span>
                 </div>
                 <p style={{ color: '#25D366', fontSize: '0.95rem', fontWeight: '600', margin: '2px 0' }}>
@@ -224,8 +259,8 @@ export default function Contact({ isActive, user, onSectionChange }) {
             </div>
 
             <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}>
-                📍
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#ecfdf5', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <MapPinIcon />
               </div>
               <div>
                 <h4 style={{ fontSize: '1rem', color: '#1e293b', marginBottom: '2px', fontWeight: '600' }}>Lokasi Workshop</h4>
@@ -234,8 +269,8 @@ export default function Contact({ isActive, user, onSectionChange }) {
             </div>
 
             <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '1.25rem', boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)', border: '1px solid #e2e8f0', display: 'flex', gap: '1.25rem', alignItems: 'center' }}>
-              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem' }}>
-                ⏰
+              <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ClockIcon />
               </div>
               <div>
                 <h4 style={{ fontSize: '1rem', color: '#1e293b', marginBottom: '2px', fontWeight: '600' }}>Jam Operasional</h4>

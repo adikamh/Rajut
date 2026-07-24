@@ -415,201 +415,6 @@ Mengubah email dan password Administrator pada Cloudflare D1 Database menjadi `h
 - Menambahkan tombol ikon mata (*Show/Hide Password*) pada bidang masukan password di form Login dan Register untuk memudahkan pengguna melihat kata sandi yang diketik.
 
 ---
-### 38. [src/context/NotificationContext.jsx](file:///c:/laragon/www/Rajut/src/context/NotificationContext.jsx) (Baru)
-- Membuat modul sistem peringatan/alert custom. 
-- Menyediakan fungsi `showToast(message, type, duration)` yang menampilkan toast notifikasi melayang di pojok kanan bawah layar. Mendukung tipe `'success'` (hijau), `'error'` (merah), dan `'loading'` (jingga dengan lingkaran pemuat berputar).
-
-### 39. [src/main.jsx](file:///c:/laragon/www/Rajut/src/main.jsx) (Diubah)
-- Membungkus komponen akar aplikasi `<App />` dengan `<NotificationProvider>` agar sistem notifikasi melayang dapat dipanggil dari mana saja di seluruh front-end.
-
-### 40. [src/App.jsx`, `Contact.jsx`, `Auth.jsx` & `Gallery.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
-- Mengganti semua penggunaan fungsi `alert()` bawaan browser dengan custom toast `showToast()` dari Notification Context untuk menyajikan feedback proses CRUD, login, logout, dan upload yang premium.
-
-### 41. [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) (Diubah)
-- **Unggahan Foto**: Menambahkan pilihan pengunggahan berkas foto lokal atau URL gambar pada panel tambah proyek Admin.
-- **Kartu Proyek**: Memasang penampil gambar utama di atas judul proyek pada kartu grid.
-- **Popup Modal Detail**: Menambahkan state `selectedProject`. Saat pengguna mengklik salah satu kartu proyek, modal popup overlay dengan backdrop-blur muncul di layar, menyajikan foto proyek beresolusi penuh, judul besar, dan deskripsi lengkap proyek secara detail.
-- **Notifikasi**: Menggunakan toast notifikasi loading dan sukses untuk proses pengerjaan pembuatan proyek baru.
-
----
----
-
-## Penyesuaian Deploy Gratis di Vercel (Update Terbaru)
-
-Menyederhanakan struktur agar backend Node/Express dapat otomatis dideploy sebagai Serverless Function di Vercel, sedangkan frontend Vite dideploy secara static.
-
-### 42. [vercel.json](file:///c:/laragon/www/Rajut/vercel.json) (Baru)
-- Berkas konfigurasi Vercel untuk melakukan URL rewrites, yaitu mengalihkan seluruh permintaan API `/api/*` ke fungsi serverless `/api/index.js`.
-
-### 43. [api/index.js](file:///c:/laragon/www/Rajut/api/index.js) (Baru)
-- Berkas penanganan serverless fungsi utama di Vercel. Mengimpor aplikasi Express terpusat dan mengekspornya secara default.
-
-### 44. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
-- **Tahan Crash File System**: Mendeteksi lingkungan Vercel (`process.env.VERCEL`) untuk mengalihkan folder penyimpanan unggahan sementara ke `/tmp/uploads` guna menghindari kegagalan baca-tulis media pada disk serverless.
-- **Kondisional Listen**: Membatasi fungsi `app.listen()` agar tidak dijalankan pada Vercel runtime (hanya lokal), serta mengekspor instansi `app`.
-
-### 45. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
-- Mengonfigurasi `API_BASE_URL` secara dinamis. Jika berjalan pada `localhost` pengembangan, rute mengarah ke server lokal port `3001`. Jika berjalan di production Vercel, rute menggunakan `/api` relatif terhadap domain deployment yang sama.
-
----
----
-
-## Fitur Edit & Hapus (Full CRUD) Galeri & Proyek (Update Terbaru)
-
-Menambahkan kapabilitas bagi Administrator untuk memperbarui (Edit) dan menghapus (Delete) berkas foto galeri maupun proyek rajutan, lengkap dengan notifikasi Toast melayang yang interaktif.
-
-### 46. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
-- **Rute Galeri Baru**: Menambahkan `PUT /api/gallery/:id` (edit foto) dan `DELETE /api/gallery/:id` (hapus foto). Rute ini diverifikasi menggunakan middleware JWT admin.
-- **Rute Proyek Baru**: Menambahkan `PUT /api/projects/:id` (edit proyek) dan `DELETE /api/projects/:id` (hapus proyek). Rute ini diverifikasi menggunakan middleware JWT admin.
-
-### 47. [src/services/api.js](file:///c:/laragon/www/Rajut/src/services/api.js) (Diubah)
-- Menambahkan metode konsumsi API: `updateGalleryImage`, `deleteGalleryImage`, `updateProject`, dan `deleteProject`.
-
-### 48. [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
-- Menambahkan callback state pengubah array data utama: `handleUpdateGalleryItem`, `handleDeleteGalleryItem`, `handleUpdateProjectItem`, dan `handleDeleteProjectItem`, lalu menyebarkannya sebagai properti komponen terkait.
-
-### 49. [src/features/gallery/Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) (Diubah)
-- **Overlay Hover Admin**: Merender tombol Edit (pencil) dan Hapus (silang) melayang di setiap foto ketika admin masuk.
-- **Modul Edit Foto**: Memunculkan modal dialog untuk memperbarui sumber foto (file/URL).
-- **Proses Alert**: Menampilkan Toast loading, sukses, dan error selama memproses operasi edit dan hapus.
-
-### 50. [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) (Diubah)
-- **Kontrol Kartu Proyek**: Memasang tombol edit dan hapus pada masing-masing kartu proyek untuk admin.
-- **Modul Edit Detail Proyek**: Memunculkan form modal edit terpadu (Judul, Foto, Deskripsi) dengan pengisian otomatis data yang sudah ada sebelumnya.
-- **Proses Alert**: Menampilkan Toast loading, sukses, dan error selama memproses operasi edit dan hapus.
-
-### 51. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
-- Menambahkan aturan CSS `.gallery-item-actions` dan `.gallery-action-btn` untuk mendukung tampilan tombol aksi melayang di atas foto galeri.
-
----
----
-
-## Integrasi Database Cloud Supabase PostgreSQL & Penyempurnaan Konfigurasi Environment (Update Terbaru)
-
-Mengalihkan basis data dari MySQL lokal (Laragon) ke cloud database Supabase PostgreSQL, membuat skema tabel PostgreSQL, mengadaptasi backend, serta menyesuaikan penanganan berkas environment.
-
-### 52. [package.json](file:///c:/laragon/www/Rajut/package.json) (Diubah)
-- Menambahkan dependensi `@supabase/supabase-js` (`^2.110.7`) untuk integrasi dan manipulasi data di database Supabase.
-
-### 53. [supabase_setup.sql](file:///c:/laragon/www/Rajut/supabase_setup.sql) (Baru)
-- Berkas penampung skrip SQL untuk menginisialisasi skema tabel (`gallery`, `projects`, `contact_messages`, `users`) di Supabase SQL Editor.
-
-### 54. [server/db.js](file:///c:/laragon/www/Rajut/server/db.js) (Diubah)
-- Menghapus pustaka koneksi MySQL (`mysql2`).
-- Menghubungkan server backend ke database Supabase menggunakan `createClient` dari `@supabase/supabase-js`.
-- Memperbarui fungsi `initializeDatabase()` untuk melakukan pengecekan dan pengisian data awal (seeding) secara otomatis di tabel-tabel Supabase yang kosong.
-- Memperbaiki bug pembacaan environment variable dengan mengubah `SUPABASE_URL` dan `SUPABASE_KEY` menjadi `VITE_SUPABASE_URL` serta mendukung baik `VITE_SUPABASE_ANON_KEY` maupun `VITE_SUPABASE_PUBLISHABLE_KEY` agar terhindar dari nilai kosong (`undefined`).
-
-### 55. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
-- Mengadaptasi semua handler API route (`/api/auth/register`, `/api/auth/login`, `/api/gallery`, `/api/projects`, dan `/api/contact`) agar menggunakan query builder Supabase client (`db.from()`), menggantikan raw SQL query.
-
-### 56. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
-- Menghapus parameter database MySQL lama (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
-- Menambahkan konfigurasi database Supabase yaitu `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, dan `VITE_SUPABASE_PUBLISHABLE_KEY`.
-
-### 57. [.gitignore](file:///c:/laragon/www/Rajut/.gitignore) (Diubah)
-- Menambahkan aturan baru untuk mengecualikan berkas `.env` dari pelacakan Git agar kredensial API Key Supabase tidak terunggah secara tidak sengaja ke repositori publik.
-
-### 58. [src/utils/supabase.js](file:///c:/laragon/www/Rajut/src/utils/supabase.js) (Baru)
-- Berkas helper inisialisasi client Supabase di sisi frontend (React) menggunakan `import.meta.env` untuk mempermudah integrasi atau pemanggilan data Supabase secara langsung di client jika diinginkan.
-
----
----
-
-## Persiapan Deploy Vercel, Responsivitas Mobile & Keamanan Data (Update Terbaru)
-
-Menyesuaikan kode program agar aman dari kebocoran data saat dipublish, memperbaiki bugs crash startup di platform Vercel, serta merapikan struktur responsivitas layout grid pada tampilan seluler (mobile).
-
-### 59. [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (Diubah)
-- Menambahkan pemeriksaan `fs.existsSync` pada file kredensial Google Drive Service Account sebelum memanggil `new google.auth.GoogleAuth`. Hal ini mencegah server Express crash saat di-boot sebagai serverless function di Vercel (karena folder `bot/` sengaja diabaikan di `.gitignore` dan tidak ikut diunggah ke Vercel).
-
-### 60. [src/features/about/About.jsx](file:///c:/laragon/www/Rajut/src/features/about/About.jsx) (Diubah)
-- Menghapus atribut inline style `gridTemplateColumns: "1fr 1fr"` pada kontainer utama seksi *About* agar layout dapat dikontrol secara responsif dari CSS global.
-
-### 61. [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx) (Diubah)
-- Menghapus atribut inline style `gridTemplateColumns: "1fr 1fr"` pada kontainer utama seksi *Contact* agar layout form dan info detail kontak dapat menyesuaikan lebar layar secara dinamis dari file CSS global.
-
-### 62. [src/styles/style.css](file:///c:/laragon/www/Rajut/src/styles/style.css) (Diubah)
-- Mengonfigurasi struktur layout seksi *About* (`.about-content`) dan seksi *Contact* (`.contact-content`) menggunakan pendekatan *mobile-first* (1 kolom secara default untuk perangkat seluler) serta membatasi susunan 2 kolom sejajar hanya pada perangkat desktop (`@media (min-width: 769px)`). Hal ini merapikan tampilan layout agar tidak terkompresi secara tidak proporsional saat dibuka via mobile.
-
-### 63. [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) (Diubah)
-- Memperbarui fungsi helper `generateToken` dan `getAuthUser` agar dapat menerima argumen kunci rahasia JWT dari environment variabel Cloudflare Workers (`env.JWT_SECRET`). Hal ini meningkatkan keamanan (mencegah kebocoran data kunci) dengan meminimalkan penggunaan kunci rahasia default yang di-hardcode jika proyek diunggah ke repositori publik.
-
----
----
-
-## Pembaruan Alamat Email Tujuan Kontak Us ke haikaladika8@gmail.com (Update Terbaru)
-
-Mengubah alamat email penerima notifikasi pesan kontak masuk dan alamat email resmi di halaman front-end menjadi `haikaladika8@gmail.com`, serta menambahkan fitur pengisian otomatis (auto-fill) nama & email pengguna yang sedang login di form kontak.
-
-### 64. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
-- Memperbarui variabel lingkungan `SMTP_TO` menjadi `"haikaladika8@gmail.com"` agar seluruh notifikasi pesan baru yang dikirim pengunjung melalui form kontak langsung diteruskan ke alamat email tersebut.
-
-### 65. [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) (Diubah)
-- Memperbarui fallback alamat email penerima pesan dari `info@tokorajut.com` menjadi `haikaladika8@gmail.com` dan mempercantik format HTML template email notifikasi pesan kontak masuk.
-
-### 66. [src/App.jsx](file:///c:/laragon/www/Rajut/src/App.jsx) (Diubah)
-- Membagikan sesi pengguna aktif (`user`) sebagai prop ke komponen `<Contact user={user} />`.
-
-### 67. [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx) (Diubah)
-- Menampilkan alamat email resmi `haikaladika8@gmail.com` dengan tautan interaktif `mailto:haikaladika8@gmail.com` pada kartu informasi kontak.
-- Menambahkan `useEffect` untuk mengisi secara otomatis (auto-fill) nama dan email pengirim pada form input jika pengguna telah masuk sesi (login).
-
----
----
-
-## Konfigurasi Gmail SMTP Real (App Password) & Penerima haikaladika272@gmail.com (Update Paling Baru)
-
-Mengonfigurasi server pengiriman email asli menggunakan Gmail SMTP dengan kredensial App Password dari `haikaladika8@gmail.com` agar seluruh isian formulir kontak yang dikirim pengunjung langsung terkirim secara *real-time* ke email `haikaladika272@gmail.com`.
-
-### 68. [.env](file:///c:/laragon/www/Rajut/.env) (Diubah)
-- Mengonfigurasi kredensial SMTP Gmail:
-  - `SMTP_HOST="smtp.gmail.com"`
-  - `SMTP_PORT=465` (SSL Secure)
-  - `SMTP_USER="haikaladika8@gmail.com"`
-  - `SMTP_PASS="kwzwhnllebhxvdlj"` (Gmail App Password)
-  - `SMTP_FROM="haikaladika8@gmail.com"`
-  - `SMTP_TO="haikaladika272@gmail.com"` (Email tujuan pengiriman notifikasi pesan masuk)
-
-### 69. [server/mailer.js](file:///c:/laragon/www/Rajut/server/mailer.js) (Diubah)
-- Memperbarui transporter Nodemailer untuk mendukung koneksi SSL `smtp.gmail.com:465`.
-- Mengonfigurasi header `replyTo` ke alamat email pengirim (pengunjung) agar admin dapat langsung membalas (*reply*) email yang masuk di `haikaladika272@gmail.com` secara instan ke pengunjung.
-- Menguji pengiriman email secara sungguhan (*live test*) dan berhasil terkirim dengan ID pesan Gmail SMTP.
-
----
----
-
-## Pembersihan Berkas Supabase & Penataan Rule Gitignore (Update Terbaru)
-
-Menghapus file legacy Supabase yang tidak lagi digunakan dan mengonfigurasi `.gitignore` agar folder `.agents` (skill AI), dokumen migrasi, file pengujian, serta berkas yang tidak relevan tidak ikut terunggah (*push*) ke GitHub maupun Vercel.
-
-### 70. Pembersihan Berkas Legacy Supabase (Dihapus)
-- Menghapus berkas `supabase_setup.sql` dan `src/utils/supabase.js` karena seluruh arsitektur data relasional telah dialihkan penuh ke Cloudflare D1 Database.
-
-### 71. [.gitignore](file:///c:/laragon/www/Rajut/.gitignore) (Diubah)
-- Menambahkan aturan pengecualian baru untuk:
-  - Folder skill AI: `.agents/` dan `skills-lock.json`
-  - Dokumen internal: `CLOUDFLARE_MIGRATION.md`
-  - File skrip/pengujian sementara: `test_real_img.png` dan `server.js`
-  - Folder media unggahan lokal: `public/uploads/*` (kecuali `.gitkeep`)
-  - Sub-direktori Cloudflare Worker: `my-backend-api/node_modules/`, `my-backend-api/.wrangler/`, dan `my-backend-api/.env*`
-
----
----
-
-## Pembaruan Kredensial Admin D1 & Fitur Tampilkan Password di Halaman Login (Update Terbaru)
-
-Mengubah email dan password Administrator pada Cloudflare D1 Database menjadi `haikaladika8@gmail.com` dan `Haikal552005`, menghapus tombol pengisian otomatis bawaan (*Quick Fill Admin*), serta menambahkan tombol sakelar tampilkan/sembunyikan password (*Show Password toggle*).
-
-### 72. Cloudflare D1 Database & [d1_setup.sql](file:///c:/laragon/www/Rajut/d1_setup.sql) (Diubah)
-- Memperbarui email Administrator di tabel `users` Cloudflare D1 menjadi `haikaladika8@gmail.com` dan password terenkripsi bcrypt untuk `Haikal552005`.
-- Meng-update file inisialisasi [d1_setup.sql](file:///c:/laragon/www/Rajut/d1_setup.sql) dan fallback memori [server/db.js](file:///c:/laragon/www/Rajut/server/db.js).
-
-### 73. [src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx) (Diubah)
-- Menghapus blok tampilan dan fungsi handler *⚡ Quick Fill Admin: admin@tokorajut.com / Isi Otomatis*.
-- Menambahkan tombol ikon mata (*Show/Hide Password*) pada bidang masukan password di form Login dan Register untuk memudahkan pengguna melihat kata sandi yang diketik.
-
----
 ---
 
 ## Perbaikan Bug Autentikasi Admin & Safe Fallback Database (Update Paling Baru)
@@ -965,21 +770,76 @@ Memisah alur reset password menjadi 3 tahap terpisah secara independen di mana v
   - **Langkah 3**: Setelah OTP terverifikasi 100% valid, layar beralih ke form `Kata Sandi Baru` dan `Konfirmasi Kata Sandi Baru` dengan tombol `Simpan Kata Sandi Baru`.
 
 
+---
+---
 
+## Penambahan Modul Cloudflare Utility & Rebranding "Dude Craft" (Update Terbaru)
 
+Menambahkan modul utility untuk interaksi API Cloudflare Workers serta melakukan rebranding nama platform dari "Toko Rajut" menjadi "Dude Craft".
 
+### 104. [src/utils/cloudflare.js](file:///c:/laragon/www/Rajut/src/utils/cloudflare.js) (Baru)
+- **Modul Utility Cloudflare**: Membuat file helper utility `cloudflare.js` untuk interaksi API Cloudflare Workers, mendefinisikan konstanta URL backend (`CLOUDFLARE_API_URL`) dan fungsi fetch khusus (`cfFetch`) dengan header Authorization bawaan token JWT.
 
+### 105. Rebranding Identitas Platform (Diubah)
+- **Meta HTML & Title**: Memperbarui berkas [index.html](file:///c:/laragon/www/Rajut/index.html) dan [public/index.html](file:///c:/laragon/www/Rajut/public/index.html) dengan mengubah informasi penulis, judul, dan judul aplikasi mobile dari "Toko Rajut" menjadi "Dude Craft".
+- **Header Logo & Brand**: Mengubah label teks logo nama brand pada komponen [Header.jsx](file:///c:/laragon/www/Rajut/src/components/shared/Header.jsx) menjadi "Dude Craft".
 
+---
+---
 
+## Penyempurnaan CRUD Admin (Edit & Hapus) dengan Pembersihan File Google Drive & R2 (Update Paling Baru)
 
+Memperbaiki isu sinkronisasi media di mana file gambar di Google Drive (Express backend) dan Cloudflare R2 (Worker backend) tidak terhapus saat admin mengubah (edit) atau menghapus (delete) item galeri atau proyek.
 
+### 106. Sinkronisasi File Media Google Drive & Cloudflare R2 (Diubah)
+- **Regex Drive ID**: Memperluas deteksi file Google Drive pada [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) agar mengenali format URL internal `/api/drive-image/:fileId` sehingga file gambar dapat dihapus secara otomatis dari Google Drive saat di-update atau di-delete.
+- **Project Edit & Sync**: Memperbaiki [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) pada route `PUT /api/projects/:id` agar menghapus berkas wol/proyek lama dari Google Drive dan database `gallery`, serta menambahkan sync entri galeri baru.
+- **R2 Storage Cleanup**: Menambahkan fungsi helper `deleteFileFromR2()` pada [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) untuk membersihkan file media di Cloudflare R2 bucket secara real-time saat handler edit dan delete di galeri atau proyek dieksekusi.
 
+---
+---
 
+## Penggantian Emoticon dengan Ikon SVG Profesional di Seluruh Halaman Frontend (Update Paling Baru)
 
+Menggantikan semua karakter emoji/emoticon bawaan sistem pada antarmuka pengguna (seperti ☁️, 📁, 🔗, ⭐, 💾, ❤️, 🎨, ✏️, 🚀, 📍, ⏰) dengan komponen ikon SVG vektor inline yang seragam, bersih, dan profesional.
 
+### 107. Penggantian Emojis dengan Ikon SVG di Komponen Frontend (Diubah)
+- **Komponen Galeri**: Memperbarui [src/features/gallery/Gallery.jsx](file:///c:/laragon/www/Rajut/src/features/gallery/Gallery.jsx) dengan mengganti emoji (📁, 🔗, 📤, 🔍, ✕, ‹, ›, ✓, 🗑️, 🧶, ✨) dengan ikon SVG khusus (FileIcon, LinkIcon, UploadIcon, ZoomIcon, CloseIcon, PrevIcon, NextIcon, CheckIcon, TrashIcon, YarnIcon, SparkleIcon).
+- **Komponen Proyek**: Memperbarui [src/features/projects/Projects.jsx](file:///c:/laragon/www/Rajut/src/features/projects/Projects.jsx) dengan mengganti emoji (✨, 📁, 🔗, 📤, 📦, 📸, 📄, ✎, ✕, 🗑️) dengan ikon SVG khusus (SparkleIcon, FileIcon, LinkIcon, UploadIcon, PackageIcon, CameraIcon, DetailIcon, EditIcon, CloseIcon, TrashIcon).
+- **Komponen Tentang Kami**: Memperbarui [src/features/about/About.jsx](file:///c:/laragon/www/Rajut/src/features/about/About.jsx) dengan mengganti emoji (⭐, ✏️, 📁, 🔗, 💾, 🧶, ❤️, 🎨, ✨) dengan ikon SVG (StarIcon, EditIcon, FileIcon, LinkIcon, SaveIcon, YarnIcon, HeartIcon, PaletteIcon, SparkleIcon).
+- **Komponen Kontak**: Memperbarui [src/features/contact/Contact.jsx](file:///c:/laragon/www/Rajut/src/features/contact/Contact.jsx) dengan mengganti emoji (✉️, 🚀, 📧, 🔒, 📍, ⏰, ⚠️, 😊) dengan ikon SVG (MailIcon, SendIcon, LockIcon, MapPinIcon, ClockIcon).
+- **Halaman Kebijakan Privasi**: Memperbarui [src/features/privacy/Privacy.jsx](file:///c:/laragon/www/Rajut/src/features/privacy/Privacy.jsx) dengan mengganti emoji (🔒, 📌, ☁️, 🛡️, ⚙️, 📞, 🏠) dengan ikon SVG (LockIcon, PinIcon, CloudIcon, ShieldIcon, SettingsIcon, PhoneIcon, HomeIcon).
+- **Halaman Beranda & Footer**: Memperbarui [src/features/home/Home.jsx](file:///c:/laragon/www/Rajut/src/features/home/Home.jsx) dan [src/components/shared/Footer.jsx](file:///c:/laragon/www/Rajut/src/components/shared/Footer.jsx) dengan ikon SVG untuk menggantikan emoji (✨, 🖼️, 📦, 🔍, 🔒).
 
+---
+---
 
+## Implementasi Rate Limit, Payload Limit, & Penanganan Error Global (Update Paling Baru)
 
+Meningkatkan keandalan, stabilitas, dan keamanan Express server dengan menerapkan sistem pembatasan request (Rate Limiting), pembatasan ukuran payload data, serta penangan kegagalan global.
 
+### 108. Stabilitas & Keamanan Server Express (Diubah)
+- **Rate Limit Kustom (In-Memory)**: Membuat middleware `createRateLimiter` di [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) untuk membatasi request per IP secara dinamis.
+  - `authLimiter` (Maks 15 request per 15 menit): Dipasang pada rute sensitif: register, login, reset password, verifikasi OTP, serta formulir kontak.
+  - `generalLimiter` (Maks 300 request per 15 menit): Dipasang pada rute umum `/api/*`.
+- **Payload & Upload Limit**:
+  - Mengonfigurasi limit ukuran JSON parsing dan urlencoded parsing pada Express sebesar `10mb`.
+  - Mengonfigurasi limit ukuran file upload pada instans Multer `upload` sebesar `10mb` (sama dengan limit `memoryUpload`).
+- **Global Error Handler**: Menambahkan middleware penanganan error global pada akhir berkas [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) untuk menangkap error yang tidak terduga, mencatatnya ke konsol, dan memberikan respons HTTP `500` yang aman demi mencegah server crash/mati mendadak.
 
+---
+---
 
+## Integrasi Cloudflare Turnstile untuk Keamanan Form Pendaftaran (Update Paling Baru)
+
+Menambahkan fitur verifikasi keamanan berbasis bot/spam protection menggunakan Cloudflare Turnstile pada halaman registrasi akun baru.
+
+### 109. Integrasi Cloudflare Turnstile Widget (Diubah)
+- **Frontend Script & Container**:
+  - Memasukkan script Turnstile API dengan mode explicit render (`render=explicit`) ke berkas [index.html](file:///c:/laragon/www/Rajut/index.html) dan [public/index.html](file:///c:/laragon/www/Rajut/public/index.html).
+  - Menyisipkan container widget `#turnstile-container` sebelum tombol kirim form registrasi di [src/features/auth/Auth.jsx](file:///c:/laragon/www/Rajut/src/features/auth/Auth.jsx).
+  - Mengelola pemuatan, render ulang interaktif, dan penghapusan widget Turnstile secara dinamis melalui hook `useEffect` berbasis tab & step pendaftaran.
+- **Validasi Token (Frontend)**: Memodifikasi `handleRequestRegisterOtp` agar memvalidasi penyelesaian tantangan Turnstile oleh pengguna dan menyematkan `turnstileToken` ke parameter body request.
+- **Verifikasi Token (Backend Server & Worker API)**:
+  - Pada Express backend di [server/index.js](file:///c:/laragon/www/Rajut/server/index.js) (route `/api/auth/register-request-otp`), memverifikasi token Turnstile langsung ke API siteverify Cloudflare (`challenges.cloudflare.com/turnstile/v0/siteverify`) menggunakan kunci rahasia (`0x4AAAAAAD8f4xhCNPauutciJns1UYmjrPw`) sebelum mengirimkan kode OTP.
+  - Pada Cloudflare Worker API di [my-backend-api/src/index.js](file:///c:/laragon/www/Rajut/my-backend-api/src/index.js) (route `/api/auth/register`), menambahkan alur verifikasi token Turnstile yang sama untuk proteksi ganda.

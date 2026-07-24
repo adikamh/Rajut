@@ -115,6 +115,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regAgreeTerms, setRegAgreeTerms] = useState(false)
   const [regOtp, setRegOtp] = useState('')
   const [regResendCooldown, setRegResendCooldown] = useState(0)
+  const [turnstileToken, setTurnstileToken] = useState('')
 
   // Reset Password State (OTP flow)
   const [resetStep, setResetStep] = useState(1) // 1: Request OTP email, 2: OTP & New Password
@@ -153,6 +154,52 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       if (timer) clearInterval(timer)
     }
   }, [regResendCooldown])
+
+  // Render Cloudflare Turnstile explicitly on Register tab step 1
+  useEffect(() => {
+    let widgetId = null
+    if (tab === 'register' && regStep === 1) {
+      const initTurnstile = () => {
+        const container = document.getElementById('turnstile-container')
+        if (container && window.turnstile) {
+          try {
+            container.innerHTML = ''
+            widgetId = window.turnstile.render('#turnstile-container', {
+              sitekey: '0x4AAAAAAD8f44ErKvGSm9_O',
+              callback: function(token) {
+                setTurnstileToken(token)
+              },
+              'error-callback': function() {
+                showToast('Cloudflare Turnstile gagal dimuat. Silakan muat ulang halaman.', 'error')
+              }
+            })
+          } catch (err) {
+            console.error("Turnstile render error:", err)
+          }
+        }
+      }
+
+      if (window.turnstile) {
+        initTurnstile()
+      } else {
+        const interval = setInterval(() => {
+          if (window.turnstile) {
+            clearInterval(interval)
+            initTurnstile()
+          }
+        }, 100)
+        return () => clearInterval(interval)
+      }
+    }
+
+    return () => {
+      if (widgetId !== null && window.turnstile) {
+        try {
+          window.turnstile.remove(widgetId)
+        } catch (e) {}
+      }
+    }
+  }, [tab, regStep])
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
@@ -213,6 +260,11 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       return
     }
 
+    if (!turnstileToken) {
+      showToast('Harap selesaikan verifikasi keamanan Cloudflare Turnstile!', 'error')
+      return
+    }
+
     setLoading(true)
     showToast('Memeriksa ketersediaan email & mengirimkan OTP...', 'loading', 0)
 
@@ -221,7 +273,8 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       address: regAddress.trim(),
       phone: regPhone.trim(),
       email: regEmail.trim(),
-      password: regPassword
+      password: regPassword,
+      turnstileToken: turnstileToken
     }
 
     try {
@@ -231,6 +284,11 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       setRegResendCooldown(60)
     } catch (err) {
       console.error(err)
+      // Reset Turnstile token on error to force re-verification
+      setTurnstileToken('')
+      if (window.turnstile) {
+        try { window.turnstile.reset('#turnstile-container') } catch (e) {}
+      }
       showToast(err.message || 'Email ini sudah terdaftar atau gagal mengirim OTP!', 'error', 4500)
     } finally {
       setLoading(false)
@@ -702,6 +760,17 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                     </span>
                   </label>
                 </div>
+
+                {/* Cloudflare Turnstile Verification Widget */}
+                <div 
+                  id="turnstile-container" 
+                  style={{ 
+                    display: 'flex', 
+                    justifyContent: 'center', 
+                    marginBottom: '1.5rem',
+                    minHeight: '65px'
+                  }}
+                ></div>
 
                 <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   {loading ? 'Memeriksa Email & OTP...' : <> <MailIcon size={18} color="#ffffff" /> Kirim Kode OTP Pendaftaran </>}

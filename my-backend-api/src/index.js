@@ -57,6 +57,19 @@ async function saveFileToR2(env, file) {
 	return file.name || 'image.jpg';
 }
 
+async function deleteFileFromR2(env, url) {
+	if (!url || !env.BUCKET) return;
+	if (url.includes('/api/uploads/')) {
+		const key = url.split('/api/uploads/')[1];
+		try {
+			await env.BUCKET.delete(key);
+			console.log(`Deleted R2 object: ${key}`);
+		} catch (err) {
+			console.error(`Failed to delete R2 object: ${key}`, err);
+		}
+	}
+}
+
 export default {
 	async fetch(request, env, ctx) {
 		// Handle CORS Preflight
@@ -100,10 +113,28 @@ export default {
 			// ================= 2. AUTH ROUTES =================
 			if (path === '/api/auth/register' && method === 'POST') {
 				const body = await request.json();
-				const { name, address, phone, email, password, role } = body;
+				const { name, address, phone, email, password, role, turnstileToken } = body;
 
 				if (!name || !address || !phone || !email || !password) {
 					return errorResponse('Seluruh kolom pendaftaran harus diisi!');
+				}
+
+				if (!turnstileToken) {
+					return errorResponse('Token keamanan Turnstile tidak ditemukan!');
+				}
+
+				try {
+					const verificationResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: `secret=0x4AAAAAAD8f4xhCNPauutciJns1UYmjrPw&response=${encodeURIComponent(turnstileToken)}`
+					});
+					const verificationResult = await verificationResponse.json();
+					if (!verificationResult.success) {
+						return errorResponse('Verifikasi keamanan Turnstile gagal. Silakan coba kembali.');
+					}
+				} catch (verifyErr) {
+					return errorResponse('Gagal melakukan verifikasi keamanan. Silakan coba sesaat lagi.');
 				}
 
 				const existingUser = await env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(email).first();
@@ -253,6 +284,9 @@ export default {
 				}
 
 				const id = path.split('/')[3];
+				const existing = await env.DB.prepare('SELECT image_url FROM gallery WHERE id = ?').bind(id).first();
+				const oldImageUrl = existing ? existing.image_url : null;
+
 				let imageUrl = '';
 				const contentType = request.headers.get('content-type') || '';
 
@@ -278,6 +312,10 @@ export default {
 				await env.DB.prepare('UPDATE gallery SET image_url = ? WHERE id = ?')
 					.bind(imageUrl, id).run();
 
+				if (oldImageUrl && oldImageUrl !== imageUrl) {
+					await deleteFileFromR2(env, oldImageUrl);
+				}
+
 				const updated = await env.DB.prepare('SELECT * FROM gallery WHERE id = ?')
 					.bind(id).first();
 
@@ -291,6 +329,11 @@ export default {
 				}
 
 				const id = path.split('/')[3];
+				const existing = await env.DB.prepare('SELECT image_url FROM gallery WHERE id = ?').bind(id).first();
+				if (existing && existing.image_url) {
+					await deleteFileFromR2(env, existing.image_url);
+				}
+
 				await env.DB.prepare('DELETE FROM gallery WHERE id = ?').bind(id).run();
 				return jsonResponse({ message: 'Gallery item deleted successfully' });
 			}
@@ -446,11 +489,12 @@ export default {
 					await env.DB.prepare('UPDATE projects SET title = ?, description = ?, image_url = ? WHERE id = ?')
 						.bind(title, description, storedImageUrl, id).run();
 
-					// Clean up old gallery entries and add new ones
+					// Clean up old gallery entries and R2 files, and add new ones
 					if (oldImageUrl) {
 						let oldUrls = [];
 						try { oldUrls = oldImageUrl.startsWith('[') ? JSON.parse(oldImageUrl) : [oldImageUrl]; } catch (e) { oldUrls = [oldImageUrl]; }
 						for (const oldUrl of oldUrls) {
+							await deleteFileFromR2(env, oldUrl);
 							try { await env.DB.prepare('DELETE FROM gallery WHERE image_url = ?').bind(oldUrl).run(); } catch (e) {}
 						}
 					}
@@ -476,12 +520,13 @@ export default {
 
 				const id = path.split('/')[3];
 
-				// Clean up gallery entries for this project's photos
+				// Clean up gallery entries and R2 files for this project's photos
 				const project = await env.DB.prepare('SELECT image_url FROM projects WHERE id = ?').bind(id).first();
 				if (project && project.image_url) {
 					let urls = [];
 					try { urls = project.image_url.startsWith('[') ? JSON.parse(project.image_url) : [project.image_url]; } catch (e) { urls = [project.image_url]; }
 					for (const url of urls) {
+						await deleteFileFromR2(env, url);
 						try { await env.DB.prepare('DELETE FROM gallery WHERE image_url = ?').bind(url).run(); } catch (e) {}
 					}
 				}
