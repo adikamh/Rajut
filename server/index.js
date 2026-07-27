@@ -186,7 +186,7 @@ async function processImageBuffer(buffer, originalMimeType, originalName) {
   return { buffer, mimeType: originalMimeType, name: originalName }
 }
 
-async function uploadToGoogleDrive(fileBuffer, mimeType, originalName) {
+async function uploadToGoogleDrive(fileBuffer, mimeType, originalName, customFileName) {
   const processed = await processImageBuffer(fileBuffer, mimeType, originalName)
 
   let rawFolderId = process.env.GOOGLE_DRIVE_FOLDER_ID || ''
@@ -196,8 +196,10 @@ async function uploadToGoogleDrive(fileBuffer, mimeType, originalName) {
   const folderId = rawFolderId.trim()
   const isPlaceholder = !folderId || folderId.includes('MASUKKAN_FOLDER_ID')
 
+  const driveFileName = customFileName || `${Date.now()}-${processed.name}`
+
   const fileMetadata = {
-    name: `${Date.now()}-${processed.name}`,
+    name: driveFileName,
     parents: !isPlaceholder ? [folderId] : []
   }
 
@@ -225,7 +227,31 @@ async function uploadToGoogleDrive(fileBuffer, mimeType, originalName) {
 
   // High-Resolution Local Proxy API Endpoint for Google Drive Images
   const directUrl = `/api/drive-image/${fileId}`
-  return { fileId, directUrl, webViewLink: driveResponse.data.webViewLink }
+  return { fileId, directUrl, webViewLink: driveResponse.data.webViewLink, fileName: driveFileName }
+}
+
+async function getNextGalleryId() {
+  try {
+    const { data } = await db.from('gallery').select('id').order('id', { ascending: false }).limit(1)
+    if (data && data.length > 0 && data[0].id) {
+      return Number(data[0].id) + 1
+    }
+  } catch (err) {
+    console.warn('Error fetching max gallery id:', err.message)
+  }
+  return 1
+}
+
+async function getNextProjectId() {
+  try {
+    const { data } = await db.from('projects').select('id').order('id', { ascending: false }).limit(1)
+    if (data && data.length > 0 && data[0].id) {
+      return Number(data[0].id) + 1
+    }
+  } catch (err) {
+    console.warn('Error fetching max project id:', err.message)
+  }
+  return 1
 }
 
 // GET /api/drive-image/:fileId (Streaming gambar langsung dari Google Drive ke Browser)
@@ -863,7 +889,10 @@ app.post('/api/gallery', authenticateToken, requireAdmin, memoryUpload.single('i
     let imageUrl = ''
 
     if (req.file) {
-      const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname)
+      const nextGalId = await getNextGalleryId()
+      const formattedGalId = `G${String(nextGalId).padStart(3, '0')}`
+      const customFileName = `${formattedGalId}_${req.file.originalname}`
+      const driveResult = await uploadToGoogleDrive(req.file.buffer, req.file.mimetype, req.file.originalname, customFileName)
       imageUrl = driveResult.directUrl
     } else if (req.body.image_url) {
       imageUrl = req.body.image_url
@@ -877,7 +906,7 @@ app.post('/api/gallery', authenticateToken, requireAdmin, memoryUpload.single('i
       .select()
 
     if (error) throw error
-    res.status(201).json(inserted[0])
+    res.status(201).json(inserted && inserted.length > 0 ? inserted[0] : { image_url: imageUrl })
   } catch (error) {
     console.error('Error creating gallery item:', error)
     res.status(500).json({ error: 'Failed to save gallery item' })
@@ -1057,15 +1086,30 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
 
     let imageUrls = []
 
+    const nextProjId = await getNextProjectId()
+    const formattedProjId = `PRJ${String(nextProjId).padStart(3, '0')}`
+    const startGalId = await getNextGalleryId()
+
     // Process multiple uploaded file buffers with Google Drive + Local fallback
     if (req.files && req.files.length > 0) {
-      for (const file of req.files) {
+      const totalFiles = req.files.length
+      for (let idx = 0; idx < totalFiles; idx++) {
+        const file = req.files[idx]
+        const currentGalId = startGalId + idx
+        const formattedGalId = `G${String(currentGalId).padStart(3, '0')}`
+        let customFileName = ''
+        if (totalFiles === 1) {
+          customFileName = `${formattedProjId}_${formattedGalId}_${file.originalname}`
+        } else {
+          customFileName = `${formattedProjId}-${idx + 1}_${formattedGalId}_${file.originalname}`
+        }
+
         try {
-          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname)
+          const driveResult = await uploadToGoogleDrive(file.buffer, file.mimetype, file.originalname, customFileName)
           imageUrls.push(driveResult.directUrl)
         } catch (driveErr) {
           console.warn('Google Drive upload fallback to local storage:', driveErr.message)
-          const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${path.extname(file.originalname || '.jpg')}`
+          const uniqueFilename = `${customFileName}`
           const filePath = path.join(uploadsDir, uniqueFilename)
           fs.writeFileSync(filePath, file.buffer)
           imageUrls.push(`/uploads/${uniqueFilename}`)
@@ -1099,9 +1143,9 @@ app.post('/api/projects', authenticateToken, requireAdmin, memoryUpload.any(), a
       .from('projects')
       .insert([newProjectData])
 
-    const createdItem = (inserted && inserted.length > 0) ? inserted[0] : { id: Date.now(), ...newProjectData }
+    const createdItem = (inserted && inserted.length > 0) ? inserted[0] : { id: nextProjId, ...newProjectData }
 
-    // Sync all uploaded project photos to gallery table
+    // Sync all uploaded project photos to gallery table so they appear on Gallery page as well
     for (const url of imageUrls) {
       try {
         await db.from('gallery').insert([{ image_url: url }])
