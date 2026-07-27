@@ -15,72 +15,13 @@ const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID
 const cfD1DatabaseId = process.env.CLOUDFLARE_D1_DATABASE_ID
 const cfApiToken = process.env.CLOUDFLARE_API_TOKEN
 
-// In-Memory Database Fallback for Local Development without Cloudflare D1 API Token
-const memoryDb = {
-  users: [
-    {
-      id: 1,
-      name: 'Administrator',
-      address: 'Kantor Pusat Toko Rajut',
-      phone: '08123456789',
-      email: 'haikaladika8@gmail.com',
-      password: '$2b$10$ywdZSKkl4KQN1.W4FUrbOetSJAa2vUBMgF6sUCyY2bMQHeVI8tWsS', // password: Haikal552005
-      role: 'admin',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      name: 'Budi Santoso',
-      address: 'Jl. Kenari No. 12, Jakarta',
-      phone: '08987654321',
-      email: 'user@tokorajut.com',
-      password: '$2b$10$X4TqekfctUWYr8QDqc4kse8iLFX6uh2thNTD7Z8hXAq5afwfrXIHy', // password: user
-      role: 'user',
-      created_at: new Date().toISOString()
-    }
-  ],
-  gallery: [],
-
-  projects: [
-    {
-      id: 1,
-      title: 'Syal Rajut Kustom Musim Dingin',
-      description: 'Syal rajutan tangan lembut berwarna krem terbuat dari benang wol sintetis premium yang memberikan kehangatan ekstra.',
-      image_url: '/project-sample.jpg',
-      created_at: new Date().toISOString()
-    },
-    {
-      id: 2,
-      title: 'Topi Kupluk Rajut Handmade',
-      description: 'Topi kupluk bergaya modern yang cocok untuk aktivitas sehari-hari di cuaca dingin.',
-      image_url: '/gallery-knitting-1.jpg',
-      created_at: new Date().toISOString()
-    }
-  ],
-
-  contact_messages: [],
-
-  about_content: [
-    {
-      id: 1,
-      title: 'Passion & Dedikasi Dalam Setiap Helaian Benang',
-      subtitle: 'Cerita di balik kehangatan dan keindahan seni rajut buatan tangan kami.',
-      paragraph1: 'Selamat datang di Toko Rajut. Kami percaya bahwa setiap produk rajutan memiliki jiwa dan cerita tersendiri. Kami mengkhususkan diri dalam pembuatan karya rajut tangan eksklusif seperti syal, topi, selimut bayi, hingga dekorasi rumah.',
-      paragraph2: 'Setiap pasang tangan perajin kami merajut dengan teknik tradisional yang dipadukan dengan sentuhan estetika modern untuk menghadirkan produk berkualitas tinggi yang hangat dan penuh makna.',
-      image_url: '/about-lion.jpg',
-      badge_text: '⭐ Terpercaya Sejak 2024'
-    }
-  ]
-}
-
 let isWranglerAvailable = true
 let lastWranglerCheck = 0
 
 // Cloudflare D1 Query via Wrangler CLI Fallback
 export async function queryD1ViaWrangler(sql, params = []) {
-  // If Wrangler CLI previously failed or is unavailable locally, skip to avoid slow subshell execution & log spam
   if (!isWranglerAvailable && Date.now() - lastWranglerCheck < 5 * 60 * 1000) {
-    return { success: false, results: [] }
+    return { success: false, results: [], error: 'Wrangler CLI unavailable' }
   }
 
   try {
@@ -92,7 +33,7 @@ export async function queryD1ViaWrangler(sql, params = []) {
 
     const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'
     const command = `${npxCmd} wrangler d1 execute rajut-db --remote --json --command="${formattedSql.replace(/"/g, '\\"')}"`
-    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true, timeout: 5000 })
+    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true, timeout: 8000 })
 
     const parsed = JSON.parse(stdout)
     if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].success) {
@@ -101,11 +42,11 @@ export async function queryD1ViaWrangler(sql, params = []) {
     }
     isWranglerAvailable = false
     lastWranglerCheck = Date.now()
-    return { success: false, results: [] }
+    return { success: false, results: [], error: 'Wrangler query failed' }
   } catch (err) {
     isWranglerAvailable = false
     lastWranglerCheck = Date.now()
-    return { success: false, results: [] }
+    return { success: false, results: [], error: err.message }
   }
 }
 
@@ -130,7 +71,7 @@ export async function queryD1(sql, params = []) {
         return { success: true, results: json.result[0].results || [] }
       }
     } catch (err) {
-      // Ignore API errors gracefully
+      console.warn('Cloudflare D1 REST API Error:', err.message)
     }
   }
 
@@ -138,7 +79,7 @@ export async function queryD1(sql, params = []) {
   return queryD1ViaWrangler(sql, params)
 }
 
-// Cloudflare D1 QueryBuilder with in-memory fallback
+// Cloudflare D1 QueryBuilder
 class D1TableQuery {
   constructor(table) {
     this.table = table
@@ -176,7 +117,6 @@ class D1TableQuery {
     return this
   }
 
-
   insert(items) {
     this.operation = 'insert'
     this.insertItems = items
@@ -194,80 +134,7 @@ class D1TableQuery {
     return this
   }
 
-  executeInMemory() {
-    const tableData = memoryDb[this.table] || []
-
-    if (this.operation === 'select') {
-      let results = [...tableData]
-      for (const cond of this.whereConditions) {
-        results = results.filter(r => String(r[cond.col] || '').toLowerCase() === String(cond.val || '').toLowerCase())
-      }
-      if (this.orderBy) {
-        const [col, dir] = this.orderBy.split(' ')
-        results.sort((a, b) => dir === 'DESC' ? (b[col] > a[col] ? 1 : -1) : (a[col] > b[col] ? 1 : -1))
-      }
-      if (this.limitVal) {
-        results = results.slice(0, this.limitVal)
-      }
-      if (this.selectOptions.count === 'exact') {
-        return { data: results, count: results.length, error: null }
-      }
-      return { data: results, error: null }
-    }
-
-    if (this.operation === 'insert') {
-      const rows = Array.isArray(this.insertItems) ? this.insertItems : [this.insertItems]
-      const insertedResults = []
-      for (const row of rows) {
-        const currentItems = memoryDb[this.table] || []
-        const maxId = currentItems.reduce((max, item) => Math.max(max, Number(item.id) || 0), 0)
-        const newRow = {
-          created_at: new Date().toISOString(),
-          ...row,
-          id: maxId + 1
-        }
-
-        if (!memoryDb[this.table]) memoryDb[this.table] = []
-        memoryDb[this.table].unshift(newRow)
-        insertedResults.push(newRow)
-      }
-      return { data: insertedResults, error: null }
-    }
-
-    if (this.operation === 'update') {
-      let updated = []
-      const dataArr = memoryDb[this.table] || []
-      for (let i = 0; i < dataArr.length; i++) {
-        let match = true
-        for (const cond of this.whereConditions) {
-          if (String(dataArr[i][cond.col]).toLowerCase() !== String(cond.val).toLowerCase()) {
-            match = false
-            break
-          }
-        }
-        if (match) {
-          dataArr[i] = { ...dataArr[i], ...this.updateData }
-          updated.push(dataArr[i])
-        }
-      }
-      return { data: updated, error: null }
-    }
-
-    if (this.operation === 'delete') {
-      if (memoryDb[this.table]) {
-        memoryDb[this.table] = memoryDb[this.table].filter(r => {
-          for (const cond of this.whereConditions) {
-            if (String(r[cond.col]).toLowerCase() === String(cond.val).toLowerCase()) return false
-          }
-          return true
-        })
-      }
-      return { error: null }
-    }
-  }
-
   async execute() {
-    // Attempt Cloudflare D1 query (REST API with Wrangler CLI fallback)
     if (this.operation === 'select') {
       let sql = `SELECT ${this.selectColumns === '*' ? '*' : this.selectColumns} FROM ${this.table}`
       const params = []
@@ -295,6 +162,7 @@ class D1TableQuery {
         }
         return { data: d1Res.results, error: null }
       }
+      return { data: [], error: d1Res.error || 'D1 select query failed' }
     }
 
     if (this.operation === 'insert') {
@@ -322,6 +190,7 @@ class D1TableQuery {
       if (allSuccess) {
         return { data: insertedResults, error: null }
       }
+      return { data: null, error: 'D1 insert query failed' }
     }
 
     if (this.operation === 'update') {
@@ -346,6 +215,7 @@ class D1TableQuery {
       if (d1Res.success) {
         return { data: d1Res.results, error: null }
       }
+      return { data: null, error: 'D1 update query failed' }
     }
 
     if (this.operation === 'delete') {
@@ -364,10 +234,10 @@ class D1TableQuery {
       if (d1Res.success) {
         return { error: null }
       }
+      return { error: 'D1 delete query failed' }
     }
 
-    // Fallback to in-memory database store
-    return this.executeInMemory()
+    return { data: null, error: 'Unsupported DB operation' }
   }
 
   then(onFulfilled, onRejected) {
@@ -381,6 +251,6 @@ const db = {
   }
 }
 
-console.log('Cloudflare D1 DB client / memory store initialized.')
+console.log('Cloudflare D1 DB client initialized.')
 
 export default db

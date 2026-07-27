@@ -100,14 +100,7 @@ export default {
 
 			// Check D1 DB binding
 			if (!env.DB) {
-				// Fallback mockup response if D1 is not yet bound
-				if (path === '/api/projects' && method === 'GET') {
-					return jsonResponse([]);
-				}
-				if (path === '/api/gallery' && method === 'GET') {
-					return jsonResponse([]);
-				}
-				return jsonResponse({ message: 'Cloudflare Worker running. Note: D1 database binding (env.DB) is required for full functionality.' });
+				return errorResponse('Cloudflare D1 Database binding (env.DB) is required.', 500);
 			}
 
 			// ================= 2. AUTH ROUTES =================

@@ -56,8 +56,8 @@ export default function App() {
   const silentReloadData = async () => {
     try {
       const [gal, proj] = await Promise.all([fetchGallery(), fetchProjects()])
-      if (gal && Array.isArray(gal) && gal.length > 0) setGallery(gal)
-      if (proj && Array.isArray(proj) && proj.length > 0) setProjects(proj)
+      if (Array.isArray(gal)) setGallery(gal)
+      if (Array.isArray(proj)) setProjects(proj)
       setError(null)
     } catch (err) {
       // Ignore background sync errors when server is restarting
