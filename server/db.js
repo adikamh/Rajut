@@ -20,7 +20,8 @@ let lastWranglerCheck = 0
 
 // Cloudflare D1 Query via Wrangler CLI Fallback
 export async function queryD1ViaWrangler(sql, params = []) {
-  if (!isWranglerAvailable && Date.now() - lastWranglerCheck < 5 * 60 * 1000) {
+  // Only skip if wrangler truly unavailable (e.g., not installed) - reset every 30 seconds
+  if (!isWranglerAvailable && Date.now() - lastWranglerCheck < 30 * 1000) {
     return { success: false, results: [], error: 'Wrangler CLI unavailable' }
   }
 
@@ -32,20 +33,28 @@ export async function queryD1ViaWrangler(sql, params = []) {
     }
 
     const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx'
+    const wranglerCwd = path.resolve(__dirname, '../my-backend-api')
     const command = `${npxCmd} wrangler d1 execute rajut-db --remote --json --command="${formattedSql.replace(/"/g, '\\"')}"`
-    const { stdout } = await execAsync(command, { cwd: path.resolve(__dirname, '..'), shell: true, timeout: 8000 })
+    // Remove invalid API token from child env so wrangler uses OAuth session
+    const childEnv = { ...process.env }
+    delete childEnv.CLOUDFLARE_API_TOKEN
+    const { stdout, stderr } = await execAsync(command, { cwd: wranglerCwd, shell: true, timeout: 15000, env: childEnv })
 
     const parsed = JSON.parse(stdout)
     if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].success) {
       isWranglerAvailable = true
       return { success: true, results: parsed[0].results || [], meta: parsed[0].meta }
     }
-    isWranglerAvailable = false
-    lastWranglerCheck = Date.now()
-    return { success: false, results: [], error: 'Wrangler query failed' }
+    // Query ran but returned failure (e.g. SQL error like missing table) — don't disable wrangler
+    console.warn('Wrangler query returned failure:', parsed[0]?.error || 'unknown')
+    return { success: false, results: [], error: parsed[0]?.error || 'Wrangler query failed' }
   } catch (err) {
-    isWranglerAvailable = false
-    lastWranglerCheck = Date.now()
+    // Only mark wrangler unavailable if it's a CLI/spawn error, not a SQL error
+    const isCliError = err.message.includes('not found') || err.message.includes('Cannot find') || err.code === 'ENOENT'
+    if (isCliError) {
+      isWranglerAvailable = false
+      lastWranglerCheck = Date.now()
+    }
     return { success: false, results: [], error: err.message }
   }
 }
