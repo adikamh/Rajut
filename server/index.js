@@ -61,18 +61,16 @@ function createRateLimiter(maxRequests, windowMs, message) {
   }
 }
 
-// Strict limiter for authentication & OTP routes (max 15 requests per 15 minutes)
+// Strict limiter for authentication & OTP routes (max 5 requests per 1 minute)
 const authLimiter = createRateLimiter(
-  15,
-  15 * 60 * 1000,
-  'Terlalu banyak percobaan masuk/registrasi/OTP dari IP ini. Silakan coba lagi setelah 15 menit.'
+  5, 1 * 60 * 1000, // 1 menit dalam milidetik
+  'Terlalu banyak percobaan masuk/registrasi/OTP dari IP ini. Silakan coba lagi setelah 1 menit.'
 )
 
-// General limiter for general API routes (max 300 requests per 15 minutes)
+// General limiter for general API routes (max 100 requests per 1 minute)
 const generalLimiter = createRateLimiter(
-  300,
-  15 * 60 * 1000,
-  'Batas permintaan terlampaui. Silakan coba lagi setelah 15 menit.'
+  100, 1 * 60 * 1000, // 1 menit dalam milidetik
+  'Batas permintaan terlampaui. Silakan coba lagi setelah 1 menit.'
 )
 
 // Ensure the public uploads directory exists safely (using /tmp on Vercel)
@@ -106,7 +104,7 @@ const storage = multer.diskStorage({
   }
 })
 
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }
 })
@@ -151,7 +149,7 @@ const drive = google.drive({ version: 'v3', auth: driveAuthClient })
 
 
 const memoryStorage = multer.memoryStorage()
-const memoryUpload = multer({ 
+const memoryUpload = multer({
   storage: memoryStorage,
   limits: { fileSize: 10 * 1024 * 1024 }
 })
@@ -165,10 +163,10 @@ function bufferToStream(buffer) {
 
 async function processImageBuffer(buffer, originalMimeType, originalName) {
 
-  const isHeic = originalMimeType.toLowerCase().includes('heic') || 
-                 originalMimeType.toLowerCase().includes('heif') || 
-                 originalName.toLowerCase().endsWith('.heic') || 
-                 originalName.toLowerCase().endsWith('.heif')
+  const isHeic = originalMimeType.toLowerCase().includes('heic') ||
+    originalMimeType.toLowerCase().includes('heif') ||
+    originalName.toLowerCase().endsWith('.heic') ||
+    originalName.toLowerCase().endsWith('.heif')
 
   if (isHeic) {
     try {
@@ -512,7 +510,7 @@ app.post('/api/auth/register-verify-otp', authLimiter, async (req, res) => {
 
     registerOtpStore.delete(cleanEmail)
 
-    const createdUser = (insertedUser && insertedUser.length > 0) 
+    const createdUser = (insertedUser && insertedUser.length > 0)
       ? { id: insertedUser[0].id, name: storedOtp.name, email: cleanEmail, role: 'user' }
       : { id: Date.now(), name: storedOtp.name, email: cleanEmail, role: 'user' }
 
@@ -554,16 +552,16 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     const { data: insertedUser } = await db
       .from('users')
-      .insert([{ 
-        name: name.trim(), 
-        address: address.trim(), 
-        phone: phone.trim(), 
-        email: cleanEmail, 
-        password: hashedPassword, 
-        role: finalRole 
+      .insert([{
+        name: name.trim(),
+        address: address.trim(),
+        phone: phone.trim(),
+        email: cleanEmail,
+        password: hashedPassword,
+        role: finalRole
       }])
 
-    const createdUser = (insertedUser && insertedUser.length > 0) 
+    const createdUser = (insertedUser && insertedUser.length > 0)
       ? { id: insertedUser[0].id, name: name.trim(), email: cleanEmail, role: finalRole }
       : { id: Date.now(), name: name.trim(), email: cleanEmail, role: finalRole }
 
@@ -1273,7 +1271,7 @@ app.delete('/api/projects/:id', authenticateToken, requireAdmin, async (req, res
           await deleteFromGoogleDrive(url)
           try {
             await db.from('gallery').delete().eq('image_url', url)
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     }
