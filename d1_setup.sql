@@ -11,6 +11,18 @@ CREATE TABLE IF NOT EXISTS gallery (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 1b. About Content Table
+CREATE TABLE IF NOT EXISTS about_content (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT,
+  subtitle TEXT,
+  paragraph1 TEXT,
+  paragraph2 TEXT,
+  badge_text TEXT,
+  image_url TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 2. Projects Table
 CREATE TABLE IF NOT EXISTS projects (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

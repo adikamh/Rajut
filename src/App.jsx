@@ -198,6 +198,7 @@ export default function App() {
           onSectionChange={changeSection}
           projects={projects}
           gallery={gallery}
+          featuredWorks={gallery.slice(0, 9)}
           loading={loading}
         />
         <Gallery
