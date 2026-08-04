@@ -368,6 +368,27 @@ function generateToken(user) {
   )
 }
 
+// Google reCAPTCHA v2 Server-Side Verification Helper
+async function verifyRecaptcha(token) {
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY
+  if (!secretKey) {
+    console.warn('RECAPTCHA_SECRET_KEY not set in .env, skipping reCAPTCHA verification.')
+    return true // Skip verification if secret key is not configured
+  }
+  try {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `secret=${encodeURIComponent(secretKey)}&response=${encodeURIComponent(token)}`
+    })
+    const result = await response.json()
+    return result.success === true
+  } catch (err) {
+    console.error('reCAPTCHA verification error:', err)
+    return false
+  }
+}
+
 // ================= AUTH ROUTES =================
 
 // In-memory OTP storage for registration
@@ -376,30 +397,20 @@ const registerOtpStore = new Map()
 // 1a. Request Register OTP Code (With Email Uniqueness Check)
 app.post('/api/auth/register-request-otp', authLimiter, async (req, res) => {
   try {
-    const { name, address, phone, email, password, turnstileToken } = req.body
+    const { name, address, phone, email, password, recaptchaToken } = req.body
 
     if (!name || !address || !phone || !email || !password) {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
     }
 
-    // Verify Cloudflare Turnstile token
-    if (!turnstileToken) {
-      return res.status(400).json({ error: 'Token keamanan Turnstile tidak ditemukan!' })
+    // Verify Google reCAPTCHA v2 token
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
     }
 
-    try {
-      const verificationResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `secret=0x4AAAAAAD8f4xhCNPauutciJns1UYmjrPw&response=${encodeURIComponent(turnstileToken)}`
-      })
-      const verificationResult = await verificationResponse.json()
-      if (!verificationResult.success) {
-        return res.status(400).json({ error: 'Verifikasi keamanan Turnstile gagal. Silakan coba kembali.' })
-      }
-    } catch (verifyErr) {
-      console.error('Turnstile Verification Error:', verifyErr)
-      return res.status(500).json({ error: 'Gagal melakukan verifikasi keamanan. Silakan coba sesaat lagi.' })
+    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
+    if (!isRecaptchaValid) {
+      return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
     }
 
     const cleanEmail = email.trim().toLowerCase()
@@ -530,10 +541,20 @@ app.post('/api/auth/register-verify-otp', authLimiter, async (req, res) => {
 // 1c. Register User (Direct Fallback)
 app.post('/api/auth/register', authLimiter, async (req, res) => {
   try {
-    const { name, address, phone, email, password, role } = req.body
+    const { name, address, phone, email, password, role, recaptchaToken } = req.body
 
     if (!name || !address || !phone || !email || !password) {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
+    }
+
+    // Verify Google reCAPTCHA v2 token
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
+    }
+
+    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
+    if (!isRecaptchaValid) {
+      return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
     }
 
     const cleanEmail = email.trim().toLowerCase()
@@ -580,10 +601,20 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 // 2. Login User
 app.post('/api/auth/login', authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body
+    const { email, password, recaptchaToken } = req.body
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email dan password harus diisi!' })
+    }
+
+    // Verify Google reCAPTCHA v2 token
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
+    }
+
+    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
+    if (!isRecaptchaValid) {
+      return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
     }
 
     const { data: users, error: selectErr } = await db
@@ -625,10 +656,18 @@ const otpStore = new Map()
 // 2b. Request Reset Password OTP Code
 app.post('/api/auth/request-otp', authLimiter, async (req, res) => {
   try {
-    const { email } = req.body
+    const { email, recaptchaToken } = req.body
 
     if (!email) {
       return res.status(400).json({ error: 'Alamat email harus diisi!' })
+    }
+
+    // Verify Google reCAPTCHA v2 token (for reset password)
+    if (recaptchaToken) {
+      const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
+      if (!isRecaptchaValid) {
+        return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
+      }
     }
 
     const cleanEmail = email.trim().toLowerCase()

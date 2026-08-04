@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Button from '../../components/ui/Button'
-import { loginUser, registerUser, requestRegisterOtp, verifyRegisterOtp, requestOtp, verifyResetOtp, resetPasswordWithOtp } from '../../services/api'
+import { loginUser, registerUser, requestOtp, verifyResetOtp, resetPasswordWithOtp } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 import { setCookie, eraseCookie } from '../../utils/cookie'
 import { ChakraProvider, HStack, PinInput, PinInputField } from '@chakra-ui/react'
@@ -96,16 +96,16 @@ const ShieldCheckIcon = ({ size = 16, color = "currentColor" }) => (
 export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const { showToast } = useNotification()
   const [tab, setTab] = useState('login')
-  
+
   // Login State
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [showLoginPassword, setShowLoginPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(true)
   const [loginAgreeTerms, setLoginAgreeTerms] = useState(false)
+  const [loginRecaptchaToken, setLoginRecaptchaToken] = useState('')
 
-  // Register State (With OTP & Email Uniqueness Verification)
-  const [regStep, setRegStep] = useState(1) // 1: Fill Form, 2: Enter OTP
+  // Register State (Direct registration with reCAPTCHA, no OTP)
   const [regName, setRegName] = useState('')
   const [regAddress, setRegAddress] = useState('')
   const [regPhone, setRegPhone] = useState('')
@@ -113,9 +113,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regPassword, setRegPassword] = useState('')
   const [showRegPassword, setShowRegPassword] = useState(false)
   const [regAgreeTerms, setRegAgreeTerms] = useState(false)
-  const [regOtp, setRegOtp] = useState('')
-  const [regResendCooldown, setRegResendCooldown] = useState(0)
-  const [turnstileToken, setTurnstileToken] = useState('')
+  const [regRecaptchaToken, setRegRecaptchaToken] = useState('')
 
   // Reset Password State (OTP flow)
   const [resetStep, setResetStep] = useState(1) // 1: Request OTP email, 2: OTP & New Password
@@ -126,8 +124,136 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false)
   const [resendCooldown, setResendCooldown] = useState(0) // Cooldown timer in seconds
+  const [resetRecaptchaToken, setResetRecaptchaToken] = useState('')
 
   const [loading, setLoading] = useState(false)
+
+  // Refs for reCAPTCHA widgets
+  const loginRecaptchaRef = useRef(null)
+  const regRecaptchaRef = useRef(null)
+  const resetRecaptchaRef = useRef(null)
+
+  // Get reCAPTCHA site key from environment variables (Vite uses import.meta.env with VITE_ prefix)
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+
+  // Load Google reCAPTCHA script
+  useEffect(() => {
+    const loadRecaptchaScript = () => {
+      if (!document.querySelector('script[src*="recaptcha/api.js"]')) {
+        const script = document.createElement('script')
+        script.src = `https://www.google.com/recaptcha/api.js?render=explicit`
+        script.async = true
+        script.defer = true
+        document.head.appendChild(script)
+      }
+    }
+    loadRecaptchaScript()
+  }, [])
+
+  // Render reCAPTCHA widgets
+  useEffect(() => {
+    const renderRecaptcha = () => {
+      if (typeof window.grecaptcha !== 'undefined') {
+        // Login reCAPTCHA
+        if (tab === 'login' && loginRecaptchaRef.current && !loginRecaptchaRef.current.innerHTML) {
+          try {
+            const widgetId = window.grecaptcha.render(loginRecaptchaRef.current, {
+              sitekey: RECAPTCHA_SITE_KEY,
+              callback: (token) => {
+                setLoginRecaptchaToken(token)
+              },
+              'expired-callback': () => {
+                setLoginRecaptchaToken('')
+                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+              }
+            })
+            loginRecaptchaRef.current.dataset.widgetId = widgetId
+          } catch (err) {
+            console.error('Error rendering login reCAPTCHA:', err)
+          }
+        }
+
+        // Register reCAPTCHA
+        if (tab === 'register' && regRecaptchaRef.current && !regRecaptchaRef.current.innerHTML) {
+          try {
+            const widgetId = window.grecaptcha.render(regRecaptchaRef.current, {
+              sitekey: RECAPTCHA_SITE_KEY,
+              callback: (token) => {
+                setRegRecaptchaToken(token)
+              },
+              'expired-callback': () => {
+                setRegRecaptchaToken('')
+                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+              }
+            })
+            regRecaptchaRef.current.dataset.widgetId = widgetId
+          } catch (err) {
+            console.error('Error rendering register reCAPTCHA:', err)
+          }
+        }
+
+        // Reset Password reCAPTCHA
+        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current && !resetRecaptchaRef.current.innerHTML) {
+          try {
+            const widgetId = window.grecaptcha.render(resetRecaptchaRef.current, {
+              sitekey: RECAPTCHA_SITE_KEY,
+              callback: (token) => {
+                setResetRecaptchaToken(token)
+              },
+              'expired-callback': () => {
+                setResetRecaptchaToken('')
+                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+              }
+            })
+            resetRecaptchaRef.current.dataset.widgetId = widgetId
+          } catch (err) {
+            console.error('Error rendering reset reCAPTCHA:', err)
+          }
+        }
+      }
+    }
+
+    // Check if grecaptcha is available
+    if (typeof window.grecaptcha !== 'undefined') {
+      renderRecaptcha()
+    } else {
+      const checkInterval = setInterval(() => {
+        if (typeof window.grecaptcha !== 'undefined') {
+          clearInterval(checkInterval)
+          renderRecaptcha()
+        }
+      }, 500)
+      return () => clearInterval(checkInterval)
+    }
+  }, [tab, resetStep, RECAPTCHA_SITE_KEY, showToast])
+
+  // Reset reCAPTCHA when tab changes
+  useEffect(() => {
+    // Reset tokens when tab changes
+    setLoginRecaptchaToken('')
+    setRegRecaptchaToken('')
+    setResetRecaptchaToken('')
+
+    // Reset reCAPTCHA widgets
+    const resetWidgets = () => {
+      if (typeof window.grecaptcha !== 'undefined') {
+        const widgets = document.querySelectorAll('.g-recaptcha')
+        widgets.forEach(widget => {
+          const widgetId = widget.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            try {
+              window.grecaptcha.reset(parseInt(widgetId))
+            } catch (e) {
+              console.error('Error resetting reCAPTCHA:', e)
+            }
+          }
+          widget.innerHTML = ''
+          delete widget.dataset.widgetId
+        })
+      }
+    }
+    resetWidgets()
+  }, [tab, resetStep])
 
   // Countdown timer for Reset Password Resend OTP (60s)
   useEffect(() => {
@@ -142,65 +268,6 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     }
   }, [resendCooldown])
 
-  // Countdown timer for Register Resend OTP (60s)
-  useEffect(() => {
-    let timer
-    if (regResendCooldown > 0) {
-      timer = setInterval(() => {
-        setRegResendCooldown((prev) => prev - 1)
-      }, 1000)
-    }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [regResendCooldown])
-
-  // Render Cloudflare Turnstile explicitly on Register tab step 1
-  useEffect(() => {
-    let widgetId = null
-    if (tab === 'register' && regStep === 1) {
-      const initTurnstile = () => {
-        const container = document.getElementById('turnstile-container')
-        if (container && window.turnstile) {
-          try {
-            container.innerHTML = ''
-            widgetId = window.turnstile.render('#turnstile-container', {
-              sitekey: '0x4AAAAAAD8f44ErKvGSm9_O',
-              callback: function(token) {
-                setTurnstileToken(token)
-              },
-              'error-callback': function() {
-                showToast('Cloudflare Turnstile gagal dimuat. Silakan muat ulang halaman.', 'error')
-              }
-            })
-          } catch (err) {
-            console.error("Turnstile render error:", err)
-          }
-        }
-      }
-
-      if (window.turnstile) {
-        initTurnstile()
-      } else {
-        const interval = setInterval(() => {
-          if (window.turnstile) {
-            clearInterval(interval)
-            initTurnstile()
-          }
-        }, 100)
-        return () => clearInterval(interval)
-      }
-    }
-
-    return () => {
-      if (widgetId !== null && window.turnstile) {
-        try {
-          window.turnstile.remove(widgetId)
-        } catch (e) {}
-      }
-    }
-  }, [tab, regStep])
-
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
 
@@ -210,12 +277,17 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       return
     }
 
+    if (!loginRecaptchaToken) {
+      showToast('Harap selesaikan verifikasi keamanan reCAPTCHA!', 'error')
+      return
+    }
+
     setLoading(true)
     showToast('Sedang memverifikasi akun...', 'loading', 0)
 
     try {
-      const data = await loginUser(loginEmail.trim(), loginPassword)
-      
+      const data = await loginUser(loginEmail.trim(), loginPassword, loginRecaptchaToken)
+
       // Save to localStorage
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
@@ -231,9 +303,20 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
       onLoginSuccess(data.user)
       showToast('Login Berhasil! Selamat datang kembali.', 'success')
-      
+
       setLoginEmail('')
       setLoginPassword('')
+      setLoginRecaptchaToken('')
+
+      // Reset reCAPTCHA
+      if (loginRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
+        try {
+          const widgetId = loginRecaptchaRef.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            window.grecaptcha.reset(parseInt(widgetId))
+          }
+        } catch (e) { }
+      }
 
       setTimeout(() => {
         onSectionChange('home')
@@ -241,13 +324,23 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Email atau password salah!', 'error')
+      // Reset reCAPTCHA on error
+      if (loginRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
+        try {
+          const widgetId = loginRecaptchaRef.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            window.grecaptcha.reset(parseInt(widgetId))
+          }
+        } catch (e) { }
+      }
+      setLoginRecaptchaToken('')
     } finally {
       setLoading(false)
     }
   }
 
-  // Step 1: Submit Form & Request OTP for Registration
-  const handleRequestRegisterOtp = async (e) => {
+  // Direct Register Submit (No OTP, with reCAPTCHA)
+  const handleRegisterSubmit = async (e) => {
     if (e) e.preventDefault()
 
     if (!regName.trim() || !regAddress.trim() || !regPhone.trim() || !regEmail.trim() || !regPassword) {
@@ -260,13 +353,13 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       return
     }
 
-    if (!turnstileToken) {
-      showToast('Harap selesaikan verifikasi keamanan Cloudflare Turnstile!', 'error')
+    if (!regRecaptchaToken) {
+      showToast('Harap selesaikan verifikasi keamanan reCAPTCHA!', 'error')
       return
     }
 
     setLoading(true)
-    showToast('Memeriksa ketersediaan email & mengirimkan OTP...', 'loading', 0)
+    showToast('Sedang mendaftarkan akun Anda...', 'loading', 0)
 
     const userData = {
       name: regName.trim(),
@@ -274,65 +367,54 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       phone: regPhone.trim(),
       email: regEmail.trim(),
       password: regPassword,
-      turnstileToken: turnstileToken
+      recaptchaToken: regRecaptchaToken
     }
 
     try {
-      const data = await requestRegisterOtp(userData)
-      showToast(data.message || `Kode OTP pendaftaran dikirim ke ${regEmail}! Periksa email Anda.`, 'success', 5000)
-      setRegStep(2)
-      setRegResendCooldown(60)
-    } catch (err) {
-      console.error(err)
-      // Reset Turnstile token on error to force re-verification
-      setTurnstileToken('')
-      if (window.turnstile) {
-        try { window.turnstile.reset('#turnstile-container') } catch (e) {}
-      }
-      showToast(err.message || 'Email ini sudah terdaftar atau gagal mengirim OTP!', 'error', 4500)
-    } finally {
-      setLoading(false)
-    }
-  }
+      const data = await registerUser(userData)
 
-  // Step 2: Verify OTP & Create Verified Account
-  const handleVerifyRegisterOtpSubmit = async (e) => {
-    if (e) e.preventDefault()
-
-    if (!regOtp || regOtp.trim().length !== 6) {
-      showToast('Harap masukkan 6-digit Kode OTP pendaftaran dengan lengkap!', 'error')
-      return
-    }
-
-    setLoading(true)
-    showToast('Memverifikasi OTP & membuat akun...', 'loading', 0)
-
-    try {
-      const data = await verifyRegisterOtp(regEmail.trim(), regOtp.trim())
-
-      // Save to localStorage & Cookies
+      // Auto-login after successful registration
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
       setCookie('rajut_token', data.token, 7)
       setCookie('rajut_user', JSON.stringify(data.user), 7)
 
       onLoginSuccess(data.user)
-      showToast('Pendaftaran akun berhasil! Akun Anda telah terverifikasi.', 'success')
+      showToast('Pendaftaran akun berhasil! Selamat datang di Toko Rajut.', 'success')
 
       setRegName('')
       setRegAddress('')
       setRegPhone('')
       setRegEmail('')
       setRegPassword('')
-      setRegOtp('')
-      setRegStep(1)
+      setRegRecaptchaToken('')
+
+      // Reset reCAPTCHA
+      if (regRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
+        try {
+          const widgetId = regRecaptchaRef.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            window.grecaptcha.reset(parseInt(widgetId))
+          }
+        } catch (e) { }
+      }
 
       setTimeout(() => {
         onSectionChange('home')
       }, 700)
     } catch (err) {
       console.error(err)
-      showToast(err.message || 'Kode OTP salah atau telah kadaluarsa!', 'error')
+      // Reset reCAPTCHA token on error to force re-verification
+      setRegRecaptchaToken('')
+      if (regRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
+        try {
+          const widgetId = regRecaptchaRef.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            window.grecaptcha.reset(parseInt(widgetId))
+          }
+        } catch (e) { }
+      }
+      showToast(err.message || 'Gagal mendaftarkan akun! Silakan coba lagi.', 'error', 4500)
     } finally {
       setLoading(false)
     }
@@ -347,17 +429,32 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       return
     }
 
+    if (!resetRecaptchaToken) {
+      showToast('Harap selesaikan verifikasi keamanan reCAPTCHA!', 'error')
+      return
+    }
+
     setLoading(true)
     showToast('Sedang mengirimkan kode OTP ke email Anda...', 'loading', 0)
 
     try {
-      const data = await requestOtp(resetEmail.trim())
+      const data = await requestOtp(resetEmail.trim(), resetRecaptchaToken)
       showToast(data.message || `Kode OTP telah dikirim ke ${resetEmail}! Cek email Anda.`, 'success', 5000)
       setResetStep(2)
       setResendCooldown(60) // Start 60-second cooldown timer
     } catch (err) {
       console.error(err)
       showToast(err.message || 'Gagal mengirimkan kode OTP!', 'error')
+      // Reset reCAPTCHA on error
+      if (resetRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
+        try {
+          const widgetId = resetRecaptchaRef.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId)) {
+            window.grecaptcha.reset(parseInt(widgetId))
+          }
+        } catch (e) { }
+      }
+      setResetRecaptchaToken('')
     } finally {
       setLoading(false)
     }
@@ -412,7 +509,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     try {
       const data = await resetPasswordWithOtp(resetEmail.trim(), resetOtp.trim(), resetNewPassword)
       showToast(data.message || 'Kata sandi berhasil diperbarui!', 'success', 4000)
-      
+
       setLoginEmail(resetEmail.trim())
       setResetEmail('')
       setResetOtp('')
@@ -468,15 +565,15 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               {tab === 'login'
                 ? 'Masuk ke akun Anda untuk mengelola katalog & pesanan'
                 : tab === 'register'
-                ? 'Daftar akun baru untuk bergabung di Toko Rajut'
-                : 'Reset kata sandi akun Toko Rajut Anda via Kode OTP Email'}
+                  ? 'Daftar akun baru untuk bergabung di Toko Rajut'
+                  : 'Reset kata sandi akun Toko Rajut Anda via Kode OTP Email'}
             </p>
           </div>
-          
+
           {/* Mode Pill Switcher */}
           <div className="mode-pill-tabs" style={{ marginBottom: '1.75rem' }}>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={`mode-pill-btn ${tab === 'login' ? 'active' : ''}`}
               onClick={() => {
                 setTab('login')
@@ -486,8 +583,8 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             >
               <KeyIcon size={16} /> Masuk Akun
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className={`mode-pill-btn ${tab === 'register' ? 'active' : ''}`}
               onClick={() => {
                 setTab('register')
@@ -498,8 +595,8 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               <RegisterIcon size={16} /> Daftar Baru
             </button>
             {tab === 'reset' && (
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="mode-pill-btn active"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
@@ -628,218 +725,156 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 </label>
               </div>
 
+              {/* reCAPTCHA v2 Widget - Login */}
+              <div
+                ref={loginRecaptchaRef}
+                className="g-recaptcha"
+                style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
+              ></div>
+
               <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                 {loading ? 'Memproses Login...' : <> <KeyIcon size={18} color="#ffffff" /> Masuk ke Akun </>}
               </Button>
             </form>
           ) : tab === 'register' ? (
-            /* Register Form with 2-Step OTP Verification */
-            regStep === 1 ? (
-              <form onSubmit={handleRequestRegisterOtp}>
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label htmlFor="regName" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <UserIcon size={16} color="#d2691e" /> Nama Lengkap
-                  </label>
+            /* Register Form (Direct registration with reCAPTCHA, no OTP) */
+            <form onSubmit={handleRegisterSubmit}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regName" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <UserIcon size={16} color="#d2691e" /> Nama Lengkap
+                </label>
+                <input
+                  type="text"
+                  id="regName"
+                  placeholder="Masukkan nama lengkap Anda"
+                  value={regName}
+                  onChange={(e) => setRegName(e.target.value)}
+                  required
+                  style={{ borderRadius: '10px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regAddress" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MapPinIcon size={16} color="#d2691e" /> Alamat Tempat Tinggal
+                </label>
+                <input
+                  type="text"
+                  id="regAddress"
+                  placeholder="Contoh: Jl. Kenari No. 12, Jakarta"
+                  value={regAddress}
+                  onChange={(e) => setRegAddress(e.target.value)}
+                  required
+                  style={{ borderRadius: '10px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regPhone" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <PhoneIcon size={16} color="#d2691e" /> No. Telepon / WhatsApp
+                </label>
+                <input
+                  type="tel"
+                  id="regPhone"
+                  placeholder="Contoh: 081234567890"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  required
+                  style={{ borderRadius: '10px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="regEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MailIcon size={16} color="#d2691e" /> Alamat Email (Wajib Unik)
+                </label>
+                <input
+                  type="email"
+                  id="regEmail"
+                  placeholder="nama@email.com"
+                  value={regEmail}
+                  onChange={(e) => setRegEmail(e.target.value)}
+                  required
+                  style={{ borderRadius: '10px' }}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                <label htmlFor="regPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <LockIcon size={16} color="#d2691e" /> Kata Sandi (Password)
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
-                    type="text"
-                    id="regName"
-                    placeholder="Masukkan nama lengkap Anda"
-                    value={regName}
-                    onChange={(e) => setRegName(e.target.value)}
+                    type={showRegPassword ? 'text' : 'password'}
+                    id="regPassword"
+                    placeholder="Password"
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
                     required
-                    style={{ borderRadius: '10px' }}
+                    style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
                   />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label htmlFor="regAddress" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MapPinIcon size={16} color="#d2691e" /> Alamat Tempat Tinggal
-                  </label>
-                  <input
-                    type="text"
-                    id="regAddress"
-                    placeholder="Contoh: Jl. Kenari No. 12, Jakarta"
-                    value={regAddress}
-                    onChange={(e) => setRegAddress(e.target.value)}
-                    required
-                    style={{ borderRadius: '10px' }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label htmlFor="regPhone" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <PhoneIcon size={16} color="#d2691e" /> No. Telepon / WhatsApp
-                  </label>
-                  <input
-                    type="tel"
-                    id="regPhone"
-                    placeholder="Contoh: 081234567890"
-                    value={regPhone}
-                    onChange={(e) => setRegPhone(e.target.value)}
-                    required
-                    style={{ borderRadius: '10px' }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label htmlFor="regEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MailIcon size={16} color="#d2691e" /> Alamat Email (Wajib Unik)
-                  </label>
-                  <input
-                    type="email"
-                    id="regEmail"
-                    placeholder="nama@email.com"
-                    value={regEmail}
-                    onChange={(e) => setRegEmail(e.target.value)}
-                    required
-                    style={{ borderRadius: '10px' }}
-                  />
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-                  <label htmlFor="regPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LockIcon size={16} color="#d2691e" /> Kata Sandi (Password)
-                  </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type={showRegPassword ? 'text' : 'password'}
-                      id="regPassword"
-                      placeholder="Password"
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      required
-                      style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '1.1rem',
-                        color: '#64748b',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={showRegPassword ? "Sembunyikan Password" : "Tampilkan Password"}
-                    >
-                      {showRegPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Terms & Privacy Agreement Card */}
-                <div style={{
-                  background: '#fff7ed',
-                  padding: '12px 14px',
-                  borderRadius: '12px',
-                  border: '1px solid #ffedd5',
-                  marginBottom: '1.5rem'
-                }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.82rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
-                    <input
-                      type="checkbox"
-                      checked={regAgreeTerms}
-                      onChange={(e) => setRegAgreeTerms(e.target.checked)}
-                      style={{ width: '18px', height: '18px', accentColor: '#d2691e', marginTop: '2px', cursor: 'pointer' }}
-                    />
-                    <span>
-                      Saya setuju dengan <strong>Keamanan, Syarat Ketentuan & Kebijakan Privasi Layanan Toko Rajut</strong>.{' '}
-                      <button
-                        type="button"
-                        onClick={() => onSectionChange('privacy')}
-                        style={{ background: 'none', border: 'none', color: '#2563eb', padding: 0, fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
-                      >
-                        (Baca Kebijakan Privasi)
-                      </button>
-                    </span>
-                  </label>
-                </div>
-
-                {/* Cloudflare Turnstile Verification Widget */}
-                <div 
-                  id="turnstile-container" 
-                  style={{ 
-                    display: 'flex', 
-                    justifyContent: 'center', 
-                    marginBottom: '1.5rem',
-                    minHeight: '65px'
-                  }}
-                ></div>
-
-                <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  {loading ? 'Memeriksa Email & OTP...' : <> <MailIcon size={18} color="#ffffff" /> Kirim Kode OTP Pendaftaran </>}
-                </Button>
-              </form>
-            ) : (
-              /* Register Step 2: Verification OTP Screen */
-              <form onSubmit={handleVerifyRegisterOtpSubmit}>
-                <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '12px', border: '1px solid #a7f3d0', marginBottom: '1.5rem', fontSize: '0.86rem', color: '#065f46', lineHeight: '1.5', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <ShieldCheckIcon size={20} color="#059669" />
-                  <div>
-                    <strong style={{ display: 'block', marginBottom: '2px', fontSize: '0.9rem' }}>Verifikasi Keaslian Akun</strong>
-                    Kami telah mengirimkan <strong>6-digit Kode OTP</strong> ke email <strong>{regEmail}</strong>. Masukkan kode tersebut untuk memverifikasi pendaftaran Anda.
-                  </div>
-                </div>
-
-                {/* Chakra UI OTP PinInput Component */}
-                <div className="form-group" style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-                  <label style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <HashIcon size={16} color="#d2691e" /> Input 6-Digit Kode OTP Pendaftaran
-                  </label>
-                  <ChakraProvider resetCSS={false}>
-                    <HStack justifyContent="center" spacing={2} style={{ margin: '10px 0' }}>
-                      <PinInput otp value={regOtp} onChange={(val) => setRegOtp(val)}>
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                      </PinInput>
-                    </HStack>
-                  </ChakraProvider>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
                   <button
                     type="button"
-                    onClick={() => setRegStep(1)}
-                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    ← Kembali / Ubah Data
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRequestRegisterOtp}
-                    disabled={regResendCooldown > 0 || loading}
+                    onClick={() => setShowRegPassword(!showRegPassword)}
                     style={{
+                      position: 'absolute',
+                      right: '12px',
                       background: 'none',
                       border: 'none',
-                      color: regResendCooldown > 0 ? '#94a3b8' : '#d2691e',
-                      fontWeight: '600',
-                      cursor: regResendCooldown > 0 ? 'not-allowed' : 'pointer',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      padding: '4px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      justifyContent: 'center'
                     }}
+                    title={showRegPassword ? "Sembunyikan Password" : "Tampilkan Password"}
                   >
-                    <RefreshIcon size={14} color={regResendCooldown > 0 ? '#94a3b8' : '#d2691e'} />
-                    {regResendCooldown > 0 ? `Kirim Ulang (${regResendCooldown}s)` : 'Kirim Ulang OTP'}
+                    {showRegPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
                   </button>
                 </div>
+              </div>
 
-                <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  {loading ? 'Memverifikasi Kode OTP...' : <> <ShieldCheckIcon size={18} color="#ffffff" /> Verifikasi & Buat Akun </>}
-                </Button>
-              </form>
-            )
+              {/* Terms & Privacy Agreement Card */}
+              <div style={{
+                background: '#fff7ed',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                border: '1px solid #ffedd5',
+                marginBottom: '1.5rem'
+              }}>
+                <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.82rem', color: '#475569', cursor: 'pointer', userSelect: 'none' }}>
+                  <input
+                    type="checkbox"
+                    checked={regAgreeTerms}
+                    onChange={(e) => setRegAgreeTerms(e.target.checked)}
+                    style={{ width: '18px', height: '18px', accentColor: '#d2691e', marginTop: '2px', cursor: 'pointer' }}
+                  />
+                  <span>
+                    Saya setuju dengan <strong>Keamanan, Syarat Ketentuan & Kebijakan Privasi Layanan Toko Rajut</strong>.{' '}
+                    <button
+                      type="button"
+                      onClick={() => onSectionChange('privacy')}
+                      style={{ background: 'none', border: 'none', color: '#2563eb', padding: 0, fontSize: '0.82rem', textDecoration: 'underline', cursor: 'pointer', fontWeight: '600' }}
+                    >
+                      (Baca Kebijakan Privasi)
+                    </button>
+                  </span>
+                </label>
+              </div>
+
+              {/* reCAPTCHA v2 Widget - Register */}
+              <div
+                ref={regRecaptchaRef}
+                className="g-recaptcha"
+                style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
+              ></div>
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                {loading ? 'Mendaftarkan Akun...' : <> <RegisterIcon size={18} color="#ffffff" /> Daftar Akun Baru </>}
+              </Button>
+            </form>
           ) : (
             /* Reset Password 3-Step Flow with OTP */
             resetStep === 1 ? (
@@ -864,6 +899,13 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                     style={{ borderRadius: '10px' }}
                   />
                 </div>
+
+                {/* reCAPTCHA v2 Widget - Reset Password */}
+                <div
+                  ref={resetRecaptchaRef}
+                  className="g-recaptcha"
+                  style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
+                ></div>
 
                 <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                   {loading ? 'Mengirim Kode OTP...' : <> <MailIcon size={18} color="#ffffff" /> Kirim Kode OTP Ke Email </>}
