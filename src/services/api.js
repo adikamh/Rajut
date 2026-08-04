@@ -28,13 +28,13 @@ async function handleResponseError(response, defaultMsg = 'Terjadi kesalahan') {
   throw new Error(errMsg)
 }
 
-export async function loginUser(email, password) {
+export async function loginUser(email, password, recaptchaToken) {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ email, password })
+    body: JSON.stringify({ email, password, recaptchaToken })
   })
 
   if (!response.ok) {
@@ -58,43 +58,13 @@ export async function registerUser(userData) {
   return response.json()
 }
 
-export async function requestRegisterOtp(userData) {
-  const response = await fetch(`${API_BASE_URL}/auth/register-request-otp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(userData)
-  })
-
-  if (!response.ok) {
-    await handleResponseError(response, 'Gagal meminta OTP pendaftaran')
-  }
-  return response.json()
-}
-
-export async function verifyRegisterOtp(email, otp) {
-  const response = await fetch(`${API_BASE_URL}/auth/register-verify-otp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, otp })
-  })
-
-  if (!response.ok) {
-    await handleResponseError(response, 'Gagal memverifikasi OTP pendaftaran')
-  }
-  return response.json()
-}
-
-export async function requestOtp(email) {
+export async function requestOtp(email, recaptchaToken) {
   const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ email })
+    body: JSON.stringify({ email, recaptchaToken })
   })
 
   if (!response.ok) {
