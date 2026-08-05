@@ -119,6 +119,31 @@ const CloseIcon = () => (
   </svg>
 )
 
+const HeartIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+  </svg>
+)
+
+const YarnIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10" />
+    <path d="M12 2a15.3 15.3 0 0 0-4 10 15.3 15.3 0 0 0 4 10" />
+    <path d="M2 12h20" />
+  </svg>
+)
+
+const PaletteIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#d2691e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12c0 2.21.896 4.21 2.344 5.656C4.83 18.14 5 18.77 5 19.5c0 1.38 1.12 2.5 2.5 2.5h4.5z" />
+    <circle cx="7.5" cy="10.5" r="1.5" />
+    <circle cx="11.5" cy="7.5" r="1.5" />
+    <circle cx="16.5" cy="9.5" r="1.5" />
+    <circle cx="15.5" cy="14.5" r="1.5" />
+  </svg>
+)
+
 /* ── Component ── */
 export default function Home({ isActive, onSectionChange, featuredWorks = [], loading = false }) {
   const [selectedImage, setSelectedImage] = useState(null)
@@ -137,59 +162,276 @@ export default function Home({ isActive, onSectionChange, featuredWorks = [], lo
   }, [])
 
   // Duplicate items so marquee loops seamlessly (need at least 2 copies)
-  const minCopies = featuredWorks.length > 0 ? Math.ceil(8 / featuredWorks.length) + 1 : 2
-  const marqueeItems = Array.from({ length: minCopies }, () => featuredWorks).flat()
+  const minCopies = (featuredWorks && featuredWorks.length > 0) ? Math.ceil(8 / featuredWorks.length) + 1 : 2
+  const marqueeItems = Array.from({ length: minCopies }, () => featuredWorks || []).flat()
 
   return (
-    <section id="home" className={`section ${isActive ? 'active' : ''}`}>
+    <section id="home" className={`section ${isActive ? 'active' : ''}`} style={{ padding: 0 }}>
       {/* Inject CSS once */}
       <style>{MARQUEE_CSS}</style>
 
-      {/* ── Hero ── */}
-      <div className="hero">
-        <div className="hero-content">
-          <span style={{ display: 'inline-block', background: 'rgba(210,105,30,0.1)', color: '#d2691e', padding: '6px 14px', borderRadius: '999px', fontSize: '0.85rem', fontWeight: '600', marginBottom: '1.25rem' }}>
-            <SparkleIcon /> Seni Rajut Handcrafted Indonesia
-          </span>
-          <h1 style={{ lineHeight: '1.25', marginBottom: '1.25rem' }}>
-            Kehangatan &amp; Keindahan dalam Setiap Helaian Rajutan
-          </h1>
-          <p style={{ color: '#475569', fontSize: '1.1rem', lineHeight: '1.6', marginBottom: '2rem' }}>
-            Temukan koleksi aksesoris, pakaian, dan perlengkapan rajut buatan tangan eksklusif yang dibuat dengan cinta, ketelitian, dan benang premium pilihan.
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <a href="#gallery" className="btn btn-primary"
-              onClick={(e) => { e.preventDefault(); onSectionChange('gallery') }}
-              style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: '10px' }}>
-              <GalleryIcon /> Jelajahi Galeri
-            </a>
-            <a href="#projects" className="btn"
-              onClick={(e) => { e.preventDefault(); onSectionChange('projects') }}
-              style={{ padding: '14px 28px', fontSize: '1rem', borderRadius: '10px', background: '#f1f5f9', color: '#1e293b', border: '1px solid #cbd5e1' }}>
-              <PackageIcon /> Lihat Proyek Rajut
-            </a>
-          </div>
-        </div>
+      {/* ── Hero Section ── */}
+      <div style={{
+        background: 'linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fef3c7 100%)',
+        padding: '4rem 0 5rem',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <div className="container">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '3rem',
+            alignItems: 'center'
+          }}>
+            {/* Left Content */}
+            <div style={{
+              opacity: animate ? 1 : 0,
+              transform: animate ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'opacity 0.6s ease, transform 0.6s ease'
+            }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#ffffff',
+                color: '#ea580c',
+                padding: '8px 18px',
+                borderRadius: '999px',
+                fontSize: '0.88rem',
+                fontWeight: '700',
+                marginBottom: '1.5rem',
+                boxShadow: '0 4px 15px rgba(234, 88, 12, 0.12)',
+                border: '1px solid rgba(253, 186, 116, 0.4)'
+              }}>
+                <SparkleIcon /> Seni Rajut Handcrafted Indonesia
+              </span>
 
-        <div className="hero-image">
-          <img
-            src="/about-lion.jpg"
-            alt="Handmade knitting artistry"
-            style={{ width: '100%', maxHeight: '440px', objectFit: 'cover', borderRadius: '1.5rem', boxShadow: '0 25px 50px -12px rgba(210,105,30,0.25)' }}
-          />
+              <h1 style={{
+                fontSize: 'clamp(2.2rem, 4vw, 3.4rem)',
+                fontWeight: '800',
+                lineHeight: '1.2',
+                color: '#1e293b',
+                marginBottom: '1.25rem',
+                letterSpacing: '-0.02em'
+              }}>
+                Kehangatan &amp; Keindahan Dalam Setiap Helaian Rajutan
+              </h1>
+
+              <p style={{
+                color: '#475569',
+                fontSize: '1.125rem',
+                lineHeight: '1.7',
+                marginBottom: '2.25rem',
+                maxWidth: '540px'
+              }}>
+                Temukan koleksi aksesoris, pakaian, dan dekorasi buatan tangan eksklusif yang dirajut dengan cinta, ketelitian, dan benang kualitas terbaik.
+              </p>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', marginBottom: '2.5rem' }}>
+                <a
+                  href="#gallery"
+                  className="btn btn-primary"
+                  onClick={(e) => { e.preventDefault(); onSectionChange('gallery') }}
+                  style={{
+                    padding: '14px 30px',
+                    fontSize: '1rem',
+                    borderRadius: '12px',
+                    fontWeight: '700',
+                    boxShadow: '0 8px 20px rgba(210, 105, 30, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <GalleryIcon /> Jelajahi Galeri
+                </a>
+                <a
+                  href="#projects"
+                  className="btn"
+                  onClick={(e) => { e.preventDefault(); onSectionChange('projects') }}
+                  style={{
+                    padding: '14px 30px',
+                    fontSize: '1rem',
+                    borderRadius: '12px',
+                    background: '#ffffff',
+                    color: '#1e293b',
+                    border: '1px solid #cbd5e1',
+                    fontWeight: '600',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  <PackageIcon /> Lihat Proyek Rajut
+                </a>
+              </div>
+
+              {/* Trust Badges Bar */}
+              <div style={{
+                display: 'flex',
+                gap: '1.75rem',
+                paddingTop: '1.5rem',
+                borderTop: '1px solid rgba(226, 232, 240, 0.8)',
+                flexWrap: 'wrap'
+              }}>
+                <div>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#ea580c', margin: 0 }}>100+</h4>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: '600' }}>Karya Buatan Tangan</p>
+                </div>
+                <div style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: '1.75rem' }}>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#ea580c', margin: 0 }}>100%</h4>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: '600' }}>Benang Premium</p>
+                </div>
+                <div style={{ borderLeft: '1px solid #cbd5e1', paddingLeft: '1.75rem' }}>
+                  <h4 style={{ fontSize: '1.35rem', fontWeight: '800', color: '#ea580c', margin: 0 }}>4.9 ★</h4>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0, fontWeight: '600' }}>Kepuasan Pelanggan</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Hero Image Showcase */}
+            <div style={{
+              position: 'relative',
+              textAlign: 'center',
+              opacity: animate ? 1 : 0,
+              transform: animate ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'opacity 0.8s ease 0.1s, transform 0.8s ease 0.1s'
+            }}>
+              {/* Main Banner Image */}
+              <img
+                src="/about-lion.jpg"
+                alt="Handmade knitting artistry Dude Craft"
+                style={{
+                  width: '100%',
+                  maxWidth: '460px',
+                  maxHeight: '460px',
+                  objectFit: 'cover',
+                  borderRadius: '2rem',
+                  boxShadow: '0 30px 60px -15px rgba(210,105,30,0.3)',
+                  border: '6px solid #ffffff'
+                }}
+              />
+
+              {/* Floating Badge 1 - Top Right */}
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '-10px',
+                background: '#ffffff',
+                padding: '10px 18px',
+                borderRadius: '1rem',
+                boxShadow: '0 12px 25px rgba(0,0,0,0.12)',
+                fontWeight: '700',
+                color: '#ea580c',
+                fontSize: '0.85rem',
+                border: '1px solid #ffedd5',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                zIndex: 2
+              }}>
+                ⭐ 100% Handcrafted
+              </div>
+
+              {/* Floating Badge 2 - Bottom Left */}
+              <div style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '-10px',
+                background: '#ffffff',
+                padding: '12px 20px',
+                borderRadius: '1rem',
+                boxShadow: '0 15px 30px rgba(0,0,0,0.12)',
+                fontWeight: '700',
+                color: '#1e293b',
+                fontSize: '0.88rem',
+                border: '1px solid #ffedd5',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                zIndex: 2
+              }}>
+                <YarnIcon /> Benang Halus &amp; Awet
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Featured Works — Infinite Slow Marquee ── */}
-      <div className="featured-works" style={{ paddingTop: '5rem', paddingBottom: '4rem' }}>
+      {/* ── Value Proposition Cards Section ── */}
+      <div style={{ padding: '4.5rem 0', background: '#ffffff' }}>
+        <div className="container">
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+            gap: '2rem'
+          }}>
+            <div style={{
+              background: '#fff7ed',
+              padding: '2.25rem 1.75rem',
+              borderRadius: '1.5rem',
+              border: '1px solid #ffedd5',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+            }}>
+              <div style={{ marginBottom: '1.25rem' }}><YarnIcon /></div>
+              <h3 style={{ fontSize: '1.25rem', color: '#1e293b', marginBottom: '0.75rem', fontWeight: '700' }}>
+                Kualitas Benang Premium
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+                Menggunakan benang pilihan yang sangat lembut, tidak panas di kulit, warna tahan lama, dan tidak gampang berbulu.
+              </p>
+            </div>
+
+            <div style={{
+              background: '#fff7ed',
+              padding: '2.25rem 1.75rem',
+              borderRadius: '1.5rem',
+              border: '1px solid #ffedd5',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+            }}>
+              <div style={{ marginBottom: '1.25rem' }}><HeartIcon /></div>
+              <h3 style={{ fontSize: '1.25rem', color: '#1e293b', marginBottom: '0.75rem', fontWeight: '700' }}>
+                100% Buatan Tangan
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+                Dirajut penuh ketelitian dan kehangatan oleh perajin berpengalaman untuk menghasilkan karya unik yang bernilai seni.
+              </p>
+            </div>
+
+            <div style={{
+              background: '#fff7ed',
+              padding: '2.25rem 1.75rem',
+              borderRadius: '1.5rem',
+              border: '1px solid #ffedd5',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease'
+            }}>
+              <div style={{ marginBottom: '1.25rem' }}><PaletteIcon /></div>
+              <h3 style={{ fontSize: '1.25rem', color: '#1e293b', marginBottom: '0.75rem', fontWeight: '700' }}>
+                Desain Custom &amp; Pola
+              </h3>
+              <p style={{ color: '#64748b', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+                Bisa memesan rajutan custom sesuai warna, ukuran, dan motif karakter favorit Anda untuk hadiah spesial atau pemakaian sendiri.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Featured Works Section (Marquee Slider) ── */}
+      <div className="featured-works" style={{ padding: '4rem 0 5rem', background: '#f8fafc' }}>
         <div className="container">
           <div style={{
             textAlign: 'center', marginBottom: '3rem',
             opacity: animate ? 1 : 0, transform: animate ? 'translateY(0)' : 'translateY(16px)',
             transition: 'opacity 0.6s ease, transform 0.6s ease',
           }}>
-            <h2>Karya Unggulan Pilihan</h2>
-            <p className="section-subtitle">
+            <h2 style={{ fontSize: '2.25rem', color: '#1e293b', fontWeight: '800', marginBottom: '0.75rem' }}>
+              Karya Unggulan Pilihan
+            </h2>
+            <p className="section-subtitle" style={{ maxWidth: '600px', margin: '0 auto', fontSize: '1.05rem', color: '#64748b' }}>
               Hasil kreasi terbaik yang paling diminati oleh pelanggan setia Toko Rajut.
             </p>
           </div>
@@ -222,7 +464,7 @@ export default function Home({ isActive, onSectionChange, featuredWorks = [], lo
             onMouseLeave={() => setPaused(false)}
           >
             <div className={`rajut-marquee-track${paused ? ' paused' : ''}`}
-              style={{ gap: '1.25rem' }}>
+              style={{ gap: '1.5rem' }}>
               {marqueeItems.map((work, idx) => (
                 <div
                   key={`${work.id ?? idx}-${idx}`}
@@ -245,19 +487,19 @@ export default function Home({ isActive, onSectionChange, featuredWorks = [], lo
           </div>
         )}
 
-        {/* CTA */}
+        {/* CTA Button */}
         {!loading && featuredWorks.length > 0 && (
-          <div style={{ textAlign: 'center', marginTop: '2rem' }}>
+          <div style={{ textAlign: 'center', marginTop: '2.5rem' }}>
             <a href="#gallery" className="btn btn-primary"
               onClick={(e) => { e.preventDefault(); onSectionChange('gallery') }}
-              style={{ padding: '12px 28px', fontSize: '0.95rem', borderRadius: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              style={{ padding: '14px 32px', fontSize: '1rem', borderRadius: '12px', display: 'inline-flex', alignItems: 'center', gap: '8px', fontWeight: '700' }}>
               <GalleryIcon /> Lihat Semua di Galeri
             </a>
           </div>
         )}
       </div>
 
-      {/* ── Lightbox ── */}
+      {/* ── Lightbox Preview ── */}
       {selectedImage && (
         <div
           onClick={() => setSelectedImage(null)}
@@ -304,3 +546,4 @@ export default function Home({ isActive, onSectionChange, featuredWorks = [], lo
     </section>
   )
 }
+
