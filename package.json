@@ -15,7 +15,6 @@
     "@chakra-ui/react": "^2.10.10",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@marsidev/react-turnstile": "^1.5.3",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

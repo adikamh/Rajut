@@ -106,25 +106,26 @@ export default {
 			// ================= 2. AUTH ROUTES =================
 			if (path === '/api/auth/register' && method === 'POST') {
 				const body = await request.json();
-				const { name, address, phone, email, password, role, turnstileToken } = body;
+				const { name, address, phone, email, password, role, recaptchaToken } = body;
 
 				if (!name || !address || !phone || !email || !password) {
 					return errorResponse('Seluruh kolom pendaftaran harus diisi!');
 				}
 
-				if (!turnstileToken) {
-					return errorResponse('Token keamanan Turnstile tidak ditemukan!');
+				if (!recaptchaToken) {
+					return errorResponse('Token keamanan reCAPTCHA tidak ditemukan!');
 				}
 
 				try {
-					const verificationResponse = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+					const recaptchaSecret = env.RECAPTCHA_SECRET_KEY || '6LfU3XQtAAAAAKFi42Fy14RGu8Zdpy3UofAvWQwU';
+					const verificationResponse = await fetch('https://www.google.com/recaptcha/api/siteverify', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-						body: `secret=0x4AAAAAAD8f4xhCNPauutciJns1UYmjrPw&response=${encodeURIComponent(turnstileToken)}`
+						body: `secret=${encodeURIComponent(recaptchaSecret)}&response=${encodeURIComponent(recaptchaToken)}`
 					});
 					const verificationResult = await verificationResponse.json();
 					if (!verificationResult.success) {
-						return errorResponse('Verifikasi keamanan Turnstile gagal. Silakan coba kembali.');
+						return errorResponse('Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.');
 					}
 				} catch (verifyErr) {
 					return errorResponse('Gagal melakukan verifikasi keamanan. Silakan coba sesaat lagi.');
