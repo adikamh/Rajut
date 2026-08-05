@@ -136,26 +136,37 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   // Get reCAPTCHA site key from environment variables (Vite uses import.meta.env with VITE_ prefix)
   const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY
 
-  // Load Google reCAPTCHA script
+  // Track whether the reCAPTCHA API is ready
+  const [recaptchaReady, setRecaptchaReady] = useState(!!window.__recaptchaReady)
+
+  // Set up the global onload callback for the reCAPTCHA script (loaded from index.html)
   useEffect(() => {
-    const loadRecaptchaScript = () => {
-      if (!document.querySelector('script[src*="recaptcha/api.js"]')) {
-        const script = document.createElement('script')
-        script.src = `https://www.google.com/recaptcha/api.js?render=explicit`
-        script.async = true
-        script.defer = true
-        document.head.appendChild(script)
-      }
+    if (window.__recaptchaReady) {
+      setRecaptchaReady(true)
+      return
     }
-    loadRecaptchaScript()
+
+    // This callback is triggered by the ?onload=onRecaptchaLoad param in index.html
+    window.onRecaptchaLoad = () => {
+      window.__recaptchaReady = true
+      setRecaptchaReady(true)
+    }
+
+    // If grecaptcha already loaded (script beat React), mark ready
+    if (typeof window.grecaptcha !== 'undefined' && typeof window.grecaptcha.render === 'function') {
+      window.__recaptchaReady = true
+      setRecaptchaReady(true)
+    }
   }, [])
 
-  // Render reCAPTCHA widgets
+  // Render reCAPTCHA widgets once the API is ready
   useEffect(() => {
+    if (!recaptchaReady || !RECAPTCHA_SITE_KEY) return
+
     const renderRecaptcha = () => {
-      if (typeof window.grecaptcha !== 'undefined') {
+      window.grecaptcha.ready(() => {
         // Login reCAPTCHA
-        if (tab === 'login' && loginRecaptchaRef.current && !loginRecaptchaRef.current.innerHTML) {
+        if (tab === 'login' && loginRecaptchaRef.current && !loginRecaptchaRef.current.dataset.widgetId) {
           try {
             const widgetId = window.grecaptcha.render(loginRecaptchaRef.current, {
               sitekey: RECAPTCHA_SITE_KEY,
@@ -174,7 +185,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
         }
 
         // Register reCAPTCHA
-        if (tab === 'register' && regRecaptchaRef.current && !regRecaptchaRef.current.innerHTML) {
+        if (tab === 'register' && regRecaptchaRef.current && !regRecaptchaRef.current.dataset.widgetId) {
           try {
             const widgetId = window.grecaptcha.render(regRecaptchaRef.current, {
               sitekey: RECAPTCHA_SITE_KEY,
@@ -193,7 +204,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
         }
 
         // Reset Password reCAPTCHA
-        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current && !resetRecaptchaRef.current.innerHTML) {
+        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current && !resetRecaptchaRef.current.dataset.widgetId) {
           try {
             const widgetId = window.grecaptcha.render(resetRecaptchaRef.current, {
               sitekey: RECAPTCHA_SITE_KEY,
@@ -210,22 +221,11 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             console.error('Error rendering reset reCAPTCHA:', err)
           }
         }
-      }
+      })
     }
 
-    // Check if grecaptcha is available
-    if (typeof window.grecaptcha !== 'undefined') {
-      renderRecaptcha()
-    } else {
-      const checkInterval = setInterval(() => {
-        if (typeof window.grecaptcha !== 'undefined') {
-          clearInterval(checkInterval)
-          renderRecaptcha()
-        }
-      }, 500)
-      return () => clearInterval(checkInterval)
-    }
-  }, [tab, resetStep, RECAPTCHA_SITE_KEY, showToast])
+    renderRecaptcha()
+  }, [tab, resetStep, RECAPTCHA_SITE_KEY, recaptchaReady, showToast])
 
   // Reset reCAPTCHA when tab changes
   useEffect(() => {

@@ -39,15 +39,14 @@ Rajut/
 │   │   │   ├── Header.jsx        # Navbar dinamis dengan role-based action
 │   │   │   └── Footer.jsx        # Footer terpadu dengan link privasi
 │   │   └── ui/
-│   │       └── Button.jsx        # Tombol UI standar yang reusable
-│   ├── constants/                # File konstanta (.gitkeep)
+│   ├── components/               # Komponen UI Reusable
 │   ├── context/                  # State global terpusat
 │   │   └── NotificationContext.jsx # Toast Alert System premium (Success, Error, Loading)
 │   ├── features/                 # Fitur-fitur modular (seksi halaman)
 │   │   ├── about/
 │   │   │   └── About.jsx         # Seksi profil & Vision/Mission editor untuk Admin
 │   │   ├── auth/
-│   │   │   └── Auth.jsx          # Form login, register, Turnstile, & show password toggle
+│   │   │   └── Auth.jsx          # Form login, register, reCAPTCHA, & show password toggle
 │   │   ├── contact/
 │   │   │   └── Contact.jsx       # Form kontak, auto-fill email, & SMTP trigger
 │   │   ├── dashboard/            # Panel dashboard (.gitkeep)
