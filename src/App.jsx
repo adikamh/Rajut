@@ -41,8 +41,8 @@ export default function App() {
     try {
       setLoading(true)
       const [gal, proj] = await Promise.all([fetchGallery(), fetchProjects()])
-      setGallery(gal)
-      setProjects(proj)
+      setGallery(Array.isArray(gal) ? gal : [])
+      setProjects(Array.isArray(proj) ? proj : [])
       setError(null)
     } catch (err) {
       console.error('Error loading data from API:', err)
@@ -196,9 +196,9 @@ export default function App() {
         <Home
           isActive={activeSection === 'home'}
           onSectionChange={changeSection}
-          projects={projects}
-          gallery={gallery}
-          featuredWorks={gallery.slice(0, 9)}
+          projects={Array.isArray(projects) ? projects : []}
+          gallery={Array.isArray(gallery) ? gallery : []}
+          featuredWorks={Array.isArray(gallery) ? gallery.slice(0, 9) : []}
           loading={loading}
         />
         <Gallery

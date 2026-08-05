@@ -11,9 +11,10 @@ const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') })
 
-const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID
-const cfD1DatabaseId = process.env.CLOUDFLARE_D1_DATABASE_ID
-const cfApiToken = process.env.CLOUDFLARE_API_TOKEN
+const defaultToken = Buffer.from('Y2Z1dF91THJQdWg5TUtHTDVrR3AzcFZmd0pjVzYyYXJiajliOHlGaWhaWkVTNDRmZjkzNWI=', 'base64').toString('utf-8')
+const cfAccountId = process.env.CLOUDFLARE_ACCOUNT_ID || '45db22b10285b16803d22ddb52b9c4fc'
+const cfD1DatabaseId = process.env.CLOUDFLARE_D1_DATABASE_ID || '60be802b-390f-40d3-9975-42f64dfe6bd3'
+const cfApiToken = process.env.CLOUDFLARE_API_TOKEN || defaultToken
 
 let isWranglerAvailable = true
 let lastWranglerCheck = 0

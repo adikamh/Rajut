@@ -367,10 +367,10 @@ function generateToken(user) {
 
 // Google reCAPTCHA v2 Server-Side Verification Helper
 async function verifyRecaptcha(token) {
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY || '6LfU3XQtAAAAAKFi42Fy14RGu8Zdpy3UofAvWQwU'
   if (!secretKey) {
-    console.warn('RECAPTCHA_SECRET_KEY not set in .env, skipping reCAPTCHA verification.')
-    return true // Skip verification if secret key is not configured
+    console.warn('RECAPTCHA_SECRET_KEY not set, skipping reCAPTCHA verification.')
+    return true
   }
   try {
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
