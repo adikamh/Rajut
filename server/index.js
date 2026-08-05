@@ -61,11 +61,8 @@ function createRateLimiter(maxRequests, windowMs, message) {
   }
 }
 
-// Strict limiter for authentication & OTP routes (max 5 requests per 1 minute)
-const authLimiter = createRateLimiter(
-  5, 1 * 60 * 1000, // 1 menit dalam milidetik
-  'Terlalu banyak percobaan masuk/registrasi/OTP dari IP ini. Silakan coba lagi setelah 1 menit.'
-)
+// Pass-through middleware for authentication routes (rate limiter removed as requested)
+const authLimiter = (req, res, next) => next()
 
 // General limiter for general API routes (max 100 requests per 1 minute)
 const generalLimiter = createRateLimiter(
@@ -391,155 +388,8 @@ async function verifyRecaptcha(token) {
 
 // ================= AUTH ROUTES =================
 
-// In-memory OTP storage for registration
-const registerOtpStore = new Map()
-
-// 1a. Request Register OTP Code (With Email Uniqueness Check)
-app.post('/api/auth/register-request-otp', authLimiter, async (req, res) => {
-  try {
-    const { name, address, phone, email, password, recaptchaToken } = req.body
-
-    if (!name || !address || !phone || !email || !password) {
-      return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
-    }
-
-    // Verify Google reCAPTCHA v2 token
-    if (!recaptchaToken) {
-      return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
-    }
-
-    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
-    if (!isRecaptchaValid) {
-      return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(cleanEmail)) {
-      return res.status(400).json({ error: 'Format alamat email tidak valid!' })
-    }
-
-    // Check if email ALREADY exists in database
-    const { data: existingUsers } = await db
-      .from('users')
-      .select('*')
-      .eq('email', cleanEmail)
-
-    if (existingUsers && existingUsers.length > 0) {
-      return res.status(400).json({ error: 'Email ini sudah terdaftar! Gunakan email lain atau silakan Masuk.' })
-    }
-
-    // Cooldown check (60 seconds)
-    const existingOtp = registerOtpStore.get(cleanEmail)
-    const now = Date.now()
-    if (existingOtp && now - existingOtp.lastSentAt < 60 * 1000) {
-      const remainingSecs = Math.ceil((60 * 1000 - (now - existingOtp.lastSentAt)) / 1000)
-      return res.status(429).json({
-        error: `Harap tunggu ${remainingSecs} detik sebelum meminta ulang kode OTP pendaftaran!`
-      })
-    }
-
-    // Generate 6-digit OTP
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-    registerOtpStore.set(cleanEmail, {
-      code: otpCode,
-      name: name.trim(),
-      address: address.trim(),
-      phone: phone.trim(),
-      password,
-      expiresAt: now + 5 * 60 * 1000,
-      lastSentAt: now
-    })
-
-    // Send OTP via Nodemailer
-    try {
-      await sendOtpEmail({ email: cleanEmail, otpCode, userName: name.trim() })
-    } catch (mailErr) {
-      console.error('Error sending registration OTP email:', mailErr)
-    }
-
-    res.json({
-      message: `Kode OTP pendaftaran berhasil dikirim ke ${cleanEmail}! Silakan periksa inbox / spam email Anda.`
-    })
-  } catch (error) {
-    console.error('Error in register-request-otp:', error)
-    res.status(500).json({ error: 'Gagal memproses permintaan OTP pendaftaran.' })
-  }
-})
-
-// 1b. Verify Register OTP Code & Create User Account
-app.post('/api/auth/register-verify-otp', authLimiter, async (req, res) => {
-  try {
-    const { email, otp } = req.body
-
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Email dan kode OTP harus diisi!' })
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanOtp = otp.trim()
-
-    const storedOtp = registerOtpStore.get(cleanEmail)
-    if (!storedOtp) {
-      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah kadaluarsa. Silakan minta ulang kode OTP.' })
-    }
-
-    if (Date.now() > storedOtp.expiresAt) {
-      registerOtpStore.delete(cleanEmail)
-      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan minta ulang kode OTP baru.' })
-    }
-
-    if (storedOtp.code !== cleanOtp) {
-      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan salah!' })
-    }
-
-    // Double check email uniqueness in database
-    const { data: existingUsers } = await db
-      .from('users')
-      .select('*')
-      .eq('email', cleanEmail)
-
-    if (existingUsers && existingUsers.length > 0) {
-      registerOtpStore.delete(cleanEmail)
-      return res.status(400).json({ error: 'Email ini sudah terdaftar! Silakan gunakan email lain.' })
-    }
-
-    // Hash password and insert into users table
-    const hashedPassword = await bcrypt.hash(storedOtp.password, 10)
-    const newUserData = {
-      name: storedOtp.name,
-      address: storedOtp.address,
-      phone: storedOtp.phone,
-      email: cleanEmail,
-      password: hashedPassword,
-      role: 'user'
-    }
-
-    const { data: insertedUser } = await db
-      .from('users')
-      .insert([newUserData])
-
-    registerOtpStore.delete(cleanEmail)
-
-    const createdUser = (insertedUser && insertedUser.length > 0)
-      ? { id: insertedUser[0].id, name: storedOtp.name, email: cleanEmail, role: 'user' }
-      : { id: Date.now(), name: storedOtp.name, email: cleanEmail, role: 'user' }
-
-    const token = generateToken(createdUser)
-
-    res.status(201).json({
-      token,
-      user: createdUser,
-      message: 'Pendaftaran akun berhasil! Selamat datang di Toko Rajut.'
-    })
-  } catch (error) {
-    console.error('Error in register-verify-otp:', error)
-    res.status(500).json({ error: 'Terjadi kesalahan saat memverifikasi kode OTP.' })
-  }
-})
-
-// 1c. Register User (Direct Fallback)
-app.post('/api/auth/register', authLimiter, async (req, res) => {
+// 1. Register User (Direct Registration with reCAPTCHA)
+app.post('/api/auth/register', async (req, res) => {
   try {
     const { name, address, phone, email, password, role, recaptchaToken } = req.body
 
@@ -547,7 +397,6 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Seluruh kolom pendaftaran harus diisi!' })
     }
 
-    // Verify Google reCAPTCHA v2 token
     if (!recaptchaToken) {
       return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
     }
@@ -590,7 +439,8 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 
     res.status(201).json({
       token,
-      user: createdUser
+      user: createdUser,
+      message: 'Pendaftaran akun berhasil! Selamat datang di Toko Rajut.'
     })
   } catch (error) {
     console.error('Error in register:', error)
@@ -599,7 +449,7 @@ app.post('/api/auth/register', authLimiter, async (req, res) => {
 })
 
 // 2. Login User
-app.post('/api/auth/login', authLimiter, async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password, recaptchaToken } = req.body
 
@@ -607,7 +457,6 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email dan password harus diisi!' })
     }
 
-    // Verify Google reCAPTCHA v2 token
     if (!recaptchaToken) {
       return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
     }
@@ -620,7 +469,7 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
     const { data: users, error: selectErr } = await db
       .from('users')
       .select('*')
-      .eq('email', email)
+      .eq('email', email.trim().toLowerCase())
 
     if (selectErr) {
       console.error('Cloudflare D1 login check error:', selectErr)
@@ -650,187 +499,52 @@ app.post('/api/auth/login', authLimiter, async (req, res) => {
   }
 })
 
-// In-memory OTP storage: key = email.toLowerCase() -> { code, expiresAt, lastSentAt }
-const otpStore = new Map()
-
-// 2b. Request Reset Password OTP Code
-app.post('/api/auth/request-otp', authLimiter, async (req, res) => {
+// 3. Reset Password (Direct Reset with reCAPTCHA)
+app.post('/api/auth/reset-password', async (req, res) => {
   try {
-    const { email, recaptchaToken } = req.body
+    const { email, newPassword, recaptchaToken } = req.body
 
-    if (!email) {
-      return res.status(400).json({ error: 'Alamat email harus diisi!' })
-    }
-
-    // Verify Google reCAPTCHA v2 token (for reset password)
-    if (recaptchaToken) {
-      const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
-      if (!isRecaptchaValid) {
-        return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
-      }
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
-
-    // 1. Check if user exists in D1 database
-    let targetUser = null
-
-    try {
-      const { data: users } = await db
-        .from('users')
-        .select('*')
-        .eq('email', cleanEmail)
-
-      if (users && users.length > 0) {
-        targetUser = users[0]
-      }
-    } catch (err) {
-      console.warn('D1 query fallback for request-otp:', err.message)
-    }
-
-    // 2. Fallback check or auto-locate user by email for smooth OTP flow
-    if (!targetUser) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (emailRegex.test(cleanEmail)) {
-        targetUser = {
-          id: Date.now(),
-          name: cleanEmail.split('@')[0],
-          email: cleanEmail,
-          role: 'user'
-        }
-      } else {
-        return res.status(400).json({ error: 'Format alamat email tidak valid!' })
-      }
-    }
-
-    // Cooldown check (60 seconds resend interval restriction)
-    const existingOtp = otpStore.get(cleanEmail)
-    const now = Date.now()
-
-    if (existingOtp && now - existingOtp.lastSentAt < 60 * 1000) {
-      const remainingSecs = Math.ceil((60 * 1000 - (now - existingOtp.lastSentAt)) / 1000)
-      return res.status(429).json({
-        error: `Harap tunggu ${remainingSecs} detik sebelum meminta ulang kode OTP baru!`
-      })
-    }
-
-    // Generate 6-digit numeric OTP code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = now + 5 * 60 * 1000 // Valid for 5 minutes
-
-    otpStore.set(cleanEmail, {
-      code: otpCode,
-      expiresAt,
-      lastSentAt: now
-    })
-
-    // Send Email via mailer.js
-    try {
-      await sendOtpEmail({ email: cleanEmail, name: targetUser.name || 'Pengguna', otpCode })
-    } catch (emailErr) {
-      console.error('Failed to send OTP email via SMTP:', emailErr)
-    }
-
-    res.json({
-      message: `Kode OTP 6-digit telah dikirim ke email ${cleanEmail}! Cek kotak masuk atau spam Anda.`,
-      cooldownSeconds: 60
-    })
-  } catch (error) {
-    console.error('Error requesting OTP:', error)
-    res.status(500).json({ error: 'Gagal mengirimkan kode OTP.' })
-  }
-})
-
-// 2c. Verify Reset OTP Code Only (Step 2 Verification)
-app.post('/api/auth/verify-reset-otp', authLimiter, async (req, res) => {
-  try {
-    const { email, otp } = req.body
-
-    if (!email || !otp) {
-      return res.status(400).json({ error: 'Email dan kode OTP harus diisi!' })
-    }
-
-    const cleanEmail = email.trim().toLowerCase()
-    const cleanOtp = otp.trim()
-
-    const storedOtpData = otpStore.get(cleanEmail)
-
-    if (!storedOtpData) {
-      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah dikirim ulang. Silakan minta kode baru.' })
-    }
-
-    if (Date.now() > storedOtpData.expiresAt) {
-      otpStore.delete(cleanEmail)
-      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan klik Kirim Ulang OTP.' })
-    }
-
-    if (storedOtpData.code !== cleanOtp) {
-      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan tidak sesuai!' })
-    }
-
-    res.json({
-      success: true,
-      message: 'Kode OTP berhasil diverifikasi! Silakan buat kata sandi baru Anda.'
-    })
-  } catch (error) {
-    console.error('Error verifying reset OTP:', error)
-    res.status(500).json({ error: 'Terjadi kesalahan saat memverifikasi kode OTP.' })
-  }
-})
-
-// 2d. Reset Password with Verified OTP (Step 3)
-app.post('/api/auth/reset-password-otp', authLimiter, async (req, res) => {
-  try {
-    const { email, otp, newPassword } = req.body
-
-    if (!email || !otp || !newPassword) {
-      return res.status(400).json({ error: 'Email, kode OTP, dan kata sandi baru harus diisi!' })
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email dan kata sandi baru harus diisi!' })
     }
 
     if (newPassword.length < 4) {
       return res.status(400).json({ error: 'Kata sandi baru minimal 4 karakter!' })
     }
 
+    if (!recaptchaToken) {
+      return res.status(400).json({ error: 'Harap selesaikan verifikasi keamanan reCAPTCHA!' })
+    }
+
+    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken)
+    if (!isRecaptchaValid) {
+      return res.status(400).json({ error: 'Verifikasi keamanan reCAPTCHA gagal. Silakan coba kembali.' })
+    }
+
     const cleanEmail = email.trim().toLowerCase()
-    const cleanOtp = otp.trim()
 
-    // 1. Verify OTP in store
-    const storedOtpData = otpStore.get(cleanEmail)
+    const { data: users } = await db
+      .from('users')
+      .select('*')
+      .eq('email', cleanEmail)
 
-    if (!storedOtpData) {
-      return res.status(400).json({ error: 'Kode OTP tidak ditemukan atau telah dikirim ulang. Silakan minta kode baru.' })
+    if (!users || users.length === 0) {
+      return res.status(404).json({ error: 'Alamat email tidak ditemukan dalam sistem!' })
     }
 
-    if (Date.now() > storedOtpData.expiresAt) {
-      otpStore.delete(cleanEmail)
-      return res.status(400).json({ error: 'Kode OTP telah kadaluarsa! Silakan klik Kirim Ulang OTP.' })
-    }
-
-    if (storedOtpData.code !== cleanOtp) {
-      return res.status(400).json({ error: 'Kode OTP yang Anda masukkan tidak sesuai!' })
-    }
-
-    // 2. Fetch user and update password
     const hashedPassword = await bcrypt.hash(newPassword, 10)
 
-    try {
-      await db
-        .from('users')
-        .update({ password: hashedPassword })
-        .eq('email', cleanEmail)
-    } catch (updateErr) {
-      console.warn('D1 update error for reset-password-otp:', updateErr.message)
-    }
-
-    // Clear OTP after successful use
-    otpStore.delete(cleanEmail)
+    await db
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('email', cleanEmail)
 
     res.json({
       message: 'Kata sandi berhasil diperbarui! Silakan login dengan kata sandi baru Anda.'
     })
   } catch (error) {
-    console.error('Error verifying OTP & reset password:', error)
-    res.status(500).json({ error: 'Terjadi kesalahan saat verifikasi OTP.' })
+    console.error('Error in reset-password:', error)
+    res.status(500).json({ error: 'Terjadi kesalahan saat memperbarui kata sandi.' })
   }
 })
 

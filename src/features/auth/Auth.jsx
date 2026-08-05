@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import Button from '../../components/ui/Button'
-import { loginUser, registerUser, requestOtp, verifyResetOtp, resetPasswordWithOtp } from '../../services/api'
+import { loginUser, registerUser, resetPassword } from '../../services/api'
 import { useNotification } from '../../context/NotificationContext'
 import { setCookie, eraseCookie } from '../../utils/cookie'
-import { ChakraProvider, HStack, PinInput, PinInputField } from '@chakra-ui/react'
 
 // Reusable SVG Icon Components (Replacing emojis)
 const KeyIcon = ({ size = 16, color = "currentColor" }) => (
@@ -105,7 +104,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [loginAgreeTerms, setLoginAgreeTerms] = useState(false)
   const [loginRecaptchaToken, setLoginRecaptchaToken] = useState('')
 
-  // Register State (Direct registration with reCAPTCHA, no OTP)
+  // Register State
   const [regName, setRegName] = useState('')
   const [regAddress, setRegAddress] = useState('')
   const [regPhone, setRegPhone] = useState('')
@@ -115,15 +114,12 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const [regAgreeTerms, setRegAgreeTerms] = useState(false)
   const [regRecaptchaToken, setRegRecaptchaToken] = useState('')
 
-  // Reset Password State (OTP flow)
-  const [resetStep, setResetStep] = useState(1) // 1: Request OTP email, 2: OTP & New Password
+  // Reset Password State (Direct Reset with reCAPTCHA)
   const [resetEmail, setResetEmail] = useState('')
-  const [resetOtp, setResetOtp] = useState('')
   const [resetNewPassword, setResetNewPassword] = useState('')
   const [resetConfirmPassword, setResetConfirmPassword] = useState('')
   const [showResetPassword, setShowResetPassword] = useState(false)
   const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false)
-  const [resendCooldown, setResendCooldown] = useState(0) // Cooldown timer in seconds
   const [resetRecaptchaToken, setResetRecaptchaToken] = useState('')
 
   const [loading, setLoading] = useState(false)
@@ -206,7 +202,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
         }
 
         // Reset Password reCAPTCHA
-        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current) {
+        if (tab === 'reset' && resetRecaptchaRef.current) {
           if (!resetRecaptchaRef.current.dataset.widgetId) {
             try {
               resetRecaptchaRef.current.innerHTML = ''
@@ -233,7 +229,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       isMounted = false
       if (pollTimer) clearTimeout(pollTimer)
     }
-  }, [isActive, tab, resetStep, RECAPTCHA_SITE_KEY, showToast])
+  }, [isActive, tab, RECAPTCHA_SITE_KEY, showToast])
 
   // Clear reCAPTCHA tokens & widget dataset when tab or section active status changes
   useEffect(() => {
@@ -257,20 +253,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
       })
     }
     resetWidgets()
-  }, [tab, resetStep, isActive])
-
-  // Countdown timer for Reset Password Resend OTP (60s)
-  useEffect(() => {
-    let timer
-    if (resendCooldown > 0) {
-      timer = setInterval(() => {
-        setResendCooldown((prev) => prev - 1)
-      }, 1000)
-    }
-    return () => {
-      if (timer) clearInterval(timer)
-    }
-  }, [resendCooldown])
+  }, [tab, isActive])
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
@@ -424,12 +407,22 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     }
   }
 
-  // Step 1: Request Reset Password OTP Email
-  const handleRequestOtp = async (e) => {
+  // Direct Reset Password Submit (No OTP, with reCAPTCHA)
+  const handleResetPasswordSubmit = async (e) => {
     if (e) e.preventDefault()
 
-    if (!resetEmail.trim()) {
-      showToast('Harap masukkan alamat email Anda terlebih dahulu!', 'error')
+    if (!resetEmail.trim() || !resetNewPassword || !resetConfirmPassword) {
+      showToast('Harap lengkapi seluruh kolom reset kata sandi!', 'error')
+      return
+    }
+
+    if (resetNewPassword !== resetConfirmPassword) {
+      showToast('Konfirmasi kata sandi tidak cocok dengan kata sandi baru!', 'error')
+      return
+    }
+
+    if (resetNewPassword.length < 4) {
+      showToast('Kata sandi baru minimal 4 karakter!', 'error')
       return
     }
 
@@ -439,17 +432,24 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     }
 
     setLoading(true)
-    showToast('Sedang mengirimkan kode OTP ke email Anda...', 'loading', 0)
+    showToast('Sedang memperbarui kata sandi baru Anda...', 'loading', 0)
 
     try {
-      const data = await requestOtp(resetEmail.trim(), resetRecaptchaToken)
-      showToast(data.message || `Kode OTP telah dikirim ke ${resetEmail}! Cek email Anda.`, 'success', 5000)
-      setResetStep(2)
-      setResendCooldown(60) // Start 60-second cooldown timer
+      const data = await resetPassword(resetEmail.trim(), resetNewPassword, resetRecaptchaToken)
+      showToast(data.message || 'Kata sandi berhasil diperbarui!', 'success', 4000)
+
+      setLoginEmail(resetEmail.trim())
+      setResetEmail('')
+      setResetNewPassword('')
+      setResetConfirmPassword('')
+      setResetRecaptchaToken('')
+
+      setTimeout(() => {
+        setTab('login')
+      }, 1000)
     } catch (err) {
       console.error(err)
-      showToast(err.message || 'Gagal mengirimkan kode OTP!', 'error')
-      // Reset reCAPTCHA on error
+      showToast(err.message || 'Gagal mereset kata sandi!', 'error')
       if (resetRecaptchaRef.current && typeof window.grecaptcha !== 'undefined') {
         try {
           const widgetId = resetRecaptchaRef.current.dataset.widgetId
@@ -459,75 +459,6 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
         } catch (e) { }
       }
       setResetRecaptchaToken('')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Step 2: Verify OTP Code Only (Before entering new password)
-  const handleVerifyResetOtpSubmit = async (e) => {
-    if (e) e.preventDefault()
-
-    if (!resetOtp || resetOtp.trim().length !== 6) {
-      showToast('Harap masukkan 6-digit Kode OTP dengan lengkap!', 'error')
-      return
-    }
-
-    setLoading(true)
-    showToast('Memverifikasi kode OTP...', 'loading', 0)
-
-    try {
-      const data = await verifyResetOtp(resetEmail.trim(), resetOtp.trim())
-      showToast(data.message || 'Kode OTP valid! Silakan buat kata sandi baru Anda.', 'success', 4000)
-      setResetStep(3)
-    } catch (err) {
-      console.error(err)
-      showToast(err.message || 'Kode OTP yang Anda masukkan salah atau kadaluarsa!', 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Step 3: Save New Password
-  const handleSaveNewPasswordSubmit = async (e) => {
-    if (e) e.preventDefault()
-
-    if (!resetNewPassword || !resetConfirmPassword) {
-      showToast('Harap lengkapi kata sandi baru dan konfirmasi kata sandi!', 'error')
-      return
-    }
-
-    if (resetNewPassword !== resetConfirmPassword) {
-      showToast('Konfirmasi password tidak cocok dengan password baru!', 'error')
-      return
-    }
-
-    if (resetNewPassword.length < 4) {
-      showToast('Kata sandi baru minimal 4 karakter!', 'error')
-      return
-    }
-
-    setLoading(true)
-    showToast('Sedang menyimpan kata sandi baru...', 'loading', 0)
-
-    try {
-      const data = await resetPasswordWithOtp(resetEmail.trim(), resetOtp.trim(), resetNewPassword)
-      showToast(data.message || 'Kata sandi berhasil diperbarui!', 'success', 4000)
-
-      setLoginEmail(resetEmail.trim())
-      setResetEmail('')
-      setResetOtp('')
-      setResetNewPassword('')
-      setResetConfirmPassword('')
-      setResetStep(1)
-      setResendCooldown(0)
-
-      setTimeout(() => {
-        setTab('login')
-      }, 1000)
-    } catch (err) {
-      console.error(err)
-      showToast(err.message || 'Gagal mereset kata sandi!', 'error')
     } finally {
       setLoading(false)
     }
@@ -570,7 +501,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 ? 'Masuk ke akun Anda untuk mengelola katalog & pesanan'
                 : tab === 'register'
                   ? 'Daftar akun baru untuk bergabung di Toko Rajut'
-                  : 'Reset kata sandi akun Toko Rajut Anda via Kode OTP Email'}
+                  : 'Reset kata sandi akun Toko Rajut Anda'}
             </p>
           </div>
 
@@ -581,7 +512,6 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               className={`mode-pill-btn ${tab === 'login' ? 'active' : ''}`}
               onClick={() => {
                 setTab('login')
-                setResetStep(1)
               }}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
@@ -592,7 +522,6 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               className={`mode-pill-btn ${tab === 'register' ? 'active' : ''}`}
               onClick={() => {
                 setTab('register')
-                setResetStep(1)
               }}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
             >
@@ -604,7 +533,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
                 className="mode-pill-btn active"
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
               >
-                <ShieldCheckIcon size={16} /> Reset OTP
+                <ShieldCheckIcon size={16} /> Reset Password
               </button>
             )}
           </div>
@@ -880,237 +809,126 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
               </Button>
             </form>
           ) : (
-            /* Reset Password 3-Step Flow with OTP */
-            resetStep === 1 ? (
-              /* Step 1: Input Email */
-              <form onSubmit={handleRequestOtp}>
-                <div style={{ background: '#eff6ff', padding: '12px 14px', borderRadius: '12px', border: '1px solid #bfdbfe', marginBottom: '1.25rem', fontSize: '0.84rem', color: '#1e40af', lineHeight: '1.5', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
-                  <MailIcon size={18} color="#1e40af" />
-                  <span>Masukkan alamat email akun Anda. Kami akan mengirimkan <strong>6-digit Kode OTP</strong> ke email tersebut untuk memverifikasi permintaan reset password.</span>
-                </div>
+            /* Reset Password Form (Direct Reset with reCAPTCHA) */
+            <form onSubmit={handleResetPasswordSubmit}>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="resetEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <MailIcon size={16} color="#d2691e" /> Alamat Email Akun Terdaftar
+                </label>
+                <input
+                  type="email"
+                  id="resetEmail"
+                  placeholder="Masukkan email terdaftar (contoh: nama@email.com)"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                  style={{ borderRadius: '10px' }}
+                />
+              </div>
 
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label htmlFor="resetEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <MailIcon size={16} color="#d2691e" /> Alamat Email Akun Terdaftar
-                  </label>
+              <div className="form-group" style={{ marginBottom: '1rem' }}>
+                <label htmlFor="resetNewPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <LockIcon size={16} color="#d2691e" /> Kata Sandi Baru (New Password)
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <input
-                    type="email"
-                    id="resetEmail"
-                    placeholder="Masukkan email Anda (contoh: nama@email.com)"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
+                    type={showResetPassword ? 'text' : 'password'}
+                    id="resetNewPassword"
+                    placeholder="Masukkan kata sandi baru (min 4 karakter)"
+                    value={resetNewPassword}
+                    onChange={(e) => setResetNewPassword(e.target.value)}
                     required
-                    style={{ borderRadius: '10px' }}
+                    style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
                   />
-                </div>
-
-                {/* reCAPTCHA v2 Widget - Reset Password */}
-                <div
-                  ref={resetRecaptchaRef}
-                  className="g-recaptcha"
-                  style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
-                ></div>
-
-                <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  {loading ? 'Mengirim Kode OTP...' : <> <MailIcon size={18} color="#ffffff" /> Kirim Kode OTP Ke Email </>}
-                </Button>
-
-                <div style={{ textAlign: 'center' }}>
                   <button
                     type="button"
-                    onClick={() => setTab('login')}
+                    onClick={() => setShowResetPassword(!showResetPassword)}
                     style={{
+                      position: 'absolute',
+                      right: '12px',
                       background: 'none',
                       border: 'none',
-                      color: '#d2691e',
-                      fontSize: '0.88rem',
-                      fontWeight: '600',
                       cursor: 'pointer',
-                      textDecoration: 'underline'
-                    }}
-                  >
-                    ← Kembali ke Halaman Login
-                  </button>
-                </div>
-              </form>
-            ) : resetStep === 2 ? (
-              /* Step 2: Input & Verify OTP Code Only */
-              <form onSubmit={handleVerifyResetOtpSubmit}>
-                <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '12px', border: '1px solid #a7f3d0', marginBottom: '1.5rem', fontSize: '0.86rem', color: '#065f46', lineHeight: '1.5', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <ShieldCheckIcon size={20} color="#059669" />
-                  <div>
-                    <strong style={{ display: 'block', marginBottom: '2px', fontSize: '0.9rem' }}>Verifikasi Kode OTP</strong>
-                    Kode OTP 6-digit telah dikirim ke email <strong>{resetEmail}</strong>. Masukkan kode tersebut untuk memverifikasi identitas Anda.
-                  </div>
-                </div>
-
-                {/* Chakra UI OTP 6-Digit PinInput */}
-                <div className="form-group" style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-                  <label style={{ fontWeight: '600', color: '#334155', fontSize: '0.9rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                    <HashIcon size={16} color="#d2691e" /> Input 6-Digit Kode OTP Reset Password
-                  </label>
-                  <ChakraProvider resetCSS={false}>
-                    <HStack justifyContent="center" spacing={2} style={{ margin: '10px 0' }}>
-                      <PinInput
-                        otp
-                        value={resetOtp}
-                        onChange={(val) => setResetOtp(val)}
-                      >
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                        <PinInputField style={{ width: '44px', height: '52px', fontSize: '1.25rem', fontWeight: '700', textAlign: 'center', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#ffffff', color: '#1e293b', outline: 'none' }} />
-                      </PinInput>
-                    </HStack>
-                  </ChakraProvider>
-                </div>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', fontSize: '0.85rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setResetStep(1)}
-                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontWeight: '600' }}
-                  >
-                    ← Ulangi Alamat Email
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleRequestOtp}
-                    disabled={resendCooldown > 0 || loading}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: resendCooldown > 0 ? '#94a3b8' : '#d2691e',
-                      fontWeight: '600',
-                      cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer',
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      padding: '4px',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '4px'
+                      justifyContent: 'center'
                     }}
+                    title={showResetPassword ? "Sembunyikan Password" : "Tampilkan Password"}
                   >
-                    <RefreshIcon size={14} color={resendCooldown > 0 ? '#94a3b8' : '#d2691e'} />
-                    {resendCooldown > 0 ? `Kirim Ulang (${resendCooldown}s)` : 'Kirim Ulang OTP'}
+                    {showResetPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
                   </button>
                 </div>
+              </div>
 
-                <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  {loading ? 'Memverifikasi Kode OTP...' : <> <ShieldCheckIcon size={18} color="#ffffff" /> Verifikasi Kode OTP </>}
-                </Button>
-              </form>
-            ) : (
-              /* Step 3: Form Input Kata Sandi Baru (Tampil HANYA SETELAH OTP Terverifikasi!) */
-              <form onSubmit={handleSaveNewPasswordSubmit}>
-                <div style={{ background: '#ecfdf5', padding: '14px', borderRadius: '12px', border: '1px solid #a7f3d0', marginBottom: '1.5rem', fontSize: '0.86rem', color: '#065f46', lineHeight: '1.5', display: 'flex', gap: '10px', alignItems: 'center' }}>
-                  <ShieldCheckIcon size={20} color="#059669" />
-                  <div>
-                    <strong style={{ display: 'block', marginBottom: '2px', fontSize: '0.9rem' }}>Kode OTP Terverifikasi!</strong>
-                    Silakan buat kata sandi baru untuk akun <strong>{resetEmail}</strong>.
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1rem' }}>
-                  <label htmlFor="resetNewPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LockIcon size={16} color="#d2691e" /> Kata Sandi Baru (New Password)
-                  </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type={showResetPassword ? 'text' : 'password'}
-                      id="resetNewPassword"
-                      placeholder="Masukkan kata sandi baru (min 4 karakter)"
-                      value={resetNewPassword}
-                      onChange={(e) => setResetNewPassword(e.target.value)}
-                      required
-                      style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowResetPassword(!showResetPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '1.1rem',
-                        color: '#64748b',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={showResetPassword ? "Sembunyikan Password" : "Tampilkan Password"}
-                    >
-                      {showResetPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label htmlFor="resetConfirmPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <LockIcon size={16} color="#d2691e" /> Konfirmasi Kata Sandi Baru
-                  </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <input
-                      type={showResetConfirmPassword ? 'text' : 'password'}
-                      id="resetConfirmPassword"
-                      placeholder="Ketik ulang kata sandi baru"
-                      value={resetConfirmPassword}
-                      onChange={(e) => setResetConfirmPassword(e.target.value)}
-                      required
-                      style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
-                      style={{
-                        position: 'absolute',
-                        right: '12px',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        fontSize: '1.1rem',
-                        color: '#64748b',
-                        padding: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}
-                      title={showResetConfirmPassword ? "Sembunyikan Password" : "Tampilkan Password"}
-                    >
-                      {showResetConfirmPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
-                    </button>
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                  {loading ? 'Menyimpan Kata Sandi Baru...' : <> <KeyIcon size={18} color="#ffffff" /> Simpan Kata Sandi Baru </>}
-                </Button>
-
-                <div style={{ textAlign: 'center' }}>
+              <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                <label htmlFor="resetConfirmPassword" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <LockIcon size={16} color="#d2691e" /> Konfirmasi Kata Sandi Baru
+                </label>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showResetConfirmPassword ? 'text' : 'password'}
+                    id="resetConfirmPassword"
+                    placeholder="Ketik ulang kata sandi baru"
+                    value={resetConfirmPassword}
+                    onChange={(e) => setResetConfirmPassword(e.target.value)}
+                    required
+                    style={{ paddingRight: '48px', width: '100%', borderRadius: '10px' }}
+                  />
                   <button
                     type="button"
-                    onClick={() => {
-                      setResetStep(1)
-                      setTab('login')
-                    }}
+                    onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
                     style={{
+                      position: 'absolute',
+                      right: '12px',
                       background: 'none',
                       border: 'none',
-                      color: '#d2691e',
-                      fontSize: '0.88rem',
-                      fontWeight: '600',
                       cursor: 'pointer',
-                      textDecoration: 'underline'
+                      fontSize: '1.1rem',
+                      color: '#64748b',
+                      padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
                     }}
+                    title={showResetConfirmPassword ? "Sembunyikan Password" : "Tampilkan Password"}
                   >
-                    ← Batal & Kembali ke Login
+                    {showResetConfirmPassword ? <EyeOffIcon color="#64748b" /> : <EyeIcon color="#64748b" />}
                   </button>
                 </div>
-              </form>
-            )
+              </div>
+
+              {/* reCAPTCHA v2 Widget - Reset Password */}
+              <div
+                ref={resetRecaptchaRef}
+                className="g-recaptcha"
+                style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
+              ></div>
+
+              <Button type="submit" disabled={loading} style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '0.95rem', fontWeight: '600', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                {loading ? 'Menyimpan Kata Sandi Baru...' : <> <KeyIcon size={18} color="#ffffff" /> Simpan Kata Sandi Baru </>}
+              </Button>
+
+              <div style={{ textAlign: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => setTab('login')}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#d2691e',
+                    fontSize: '0.88rem',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    textDecoration: 'underline'
+                  }}
+                >
+                  ← Kembali ke Halaman Login
+                </button>
+              </div>
+            </form>
           )}
         </div>
       </div>

@@ -58,47 +58,17 @@ export async function registerUser(userData) {
   return response.json()
 }
 
-export async function requestOtp(email, recaptchaToken) {
-  const response = await fetch(`${API_BASE_URL}/auth/request-otp`, {
+export async function resetPassword(email, newPassword, recaptchaToken) {
+  const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ email, recaptchaToken })
+    body: JSON.stringify({ email, newPassword, recaptchaToken })
   })
 
   if (!response.ok) {
-    await handleResponseError(response, 'Gagal meminta kode OTP')
-  }
-  return response.json()
-}
-
-export async function verifyResetOtp(email, otp) {
-  const response = await fetch(`${API_BASE_URL}/auth/verify-reset-otp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, otp })
-  })
-
-  if (!response.ok) {
-    await handleResponseError(response, 'Gagal memverifikasi kode OTP reset password')
-  }
-  return response.json()
-}
-
-export async function resetPasswordWithOtp(email, otp, newPassword) {
-  const response = await fetch(`${API_BASE_URL}/auth/reset-password-otp`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ email, otp, newPassword })
-  })
-
-  if (!response.ok) {
-    await handleResponseError(response, 'Gagal mereset kata sandi dengan OTP')
+    await handleResponseError(response, 'Gagal mereset kata sandi')
   }
   return response.json()
 }
