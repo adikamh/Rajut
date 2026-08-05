@@ -133,127 +133,131 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
   const regRecaptchaRef = useRef(null)
   const resetRecaptchaRef = useRef(null)
 
-  // Get reCAPTCHA site key from environment variables (Vite uses import.meta.env with VITE_ prefix)
-  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY
+  // Get reCAPTCHA site key from environment variables (Vite uses import.meta.env with VITE_ prefix) with fallback
+  const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LfU3XQtAAAAAAGa91yZ5rlZHR6Y7Tpjb3i4T-y4'
 
-  // Track whether the reCAPTCHA API is ready
-  const [recaptchaReady, setRecaptchaReady] = useState(!!window.__recaptchaReady)
-
-  // Set up the global onload callback for the reCAPTCHA script (loaded from index.html)
+  // Ensure reCAPTCHA script is loaded
   useEffect(() => {
-    if (window.__recaptchaReady) {
-      setRecaptchaReady(true)
-      return
-    }
-
-    // This callback is triggered by the ?onload=onRecaptchaLoad param in index.html
-    window.onRecaptchaLoad = () => {
-      window.__recaptchaReady = true
-      setRecaptchaReady(true)
-    }
-
-    // If grecaptcha already loaded (script beat React), mark ready
-    if (typeof window.grecaptcha !== 'undefined' && typeof window.grecaptcha.render === 'function') {
-      window.__recaptchaReady = true
-      setRecaptchaReady(true)
+    if (!document.querySelector('script[src*="recaptcha/api.js"]')) {
+      const script = document.createElement('script')
+      script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'
+      script.async = true
+      script.defer = true
+      document.head.appendChild(script)
     }
   }, [])
 
-  // Render reCAPTCHA widgets once the API is ready
+  // Render reCAPTCHA widgets once section is active & grecaptcha is ready
   useEffect(() => {
-    if (!recaptchaReady || !RECAPTCHA_SITE_KEY) return
+    if (!isActive || !RECAPTCHA_SITE_KEY) return
 
-    const renderRecaptcha = () => {
+    let isMounted = true
+    let pollTimer = null
+
+    const tryRender = () => {
+      if (!isMounted) return
+
+      if (typeof window.grecaptcha === 'undefined' || typeof window.grecaptcha.render !== 'function') {
+        pollTimer = setTimeout(tryRender, 200)
+        return
+      }
+
       window.grecaptcha.ready(() => {
+        if (!isMounted) return
+
         // Login reCAPTCHA
-        if (tab === 'login' && loginRecaptchaRef.current && !loginRecaptchaRef.current.dataset.widgetId) {
-          try {
-            const widgetId = window.grecaptcha.render(loginRecaptchaRef.current, {
-              sitekey: RECAPTCHA_SITE_KEY,
-              callback: (token) => {
-                setLoginRecaptchaToken(token)
-              },
-              'expired-callback': () => {
-                setLoginRecaptchaToken('')
-                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
-              }
-            })
-            loginRecaptchaRef.current.dataset.widgetId = widgetId
-          } catch (err) {
-            console.error('Error rendering login reCAPTCHA:', err)
+        if (tab === 'login' && loginRecaptchaRef.current) {
+          if (!loginRecaptchaRef.current.dataset.widgetId) {
+            try {
+              loginRecaptchaRef.current.innerHTML = ''
+              const widgetId = window.grecaptcha.render(loginRecaptchaRef.current, {
+                sitekey: RECAPTCHA_SITE_KEY,
+                callback: (token) => setLoginRecaptchaToken(token),
+                'expired-callback': () => {
+                  setLoginRecaptchaToken('')
+                  showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+                }
+              })
+              loginRecaptchaRef.current.dataset.widgetId = String(widgetId)
+            } catch (err) {
+              console.error('Error rendering login reCAPTCHA:', err)
+            }
           }
         }
 
         // Register reCAPTCHA
-        if (tab === 'register' && regRecaptchaRef.current && !regRecaptchaRef.current.dataset.widgetId) {
-          try {
-            const widgetId = window.grecaptcha.render(regRecaptchaRef.current, {
-              sitekey: RECAPTCHA_SITE_KEY,
-              callback: (token) => {
-                setRegRecaptchaToken(token)
-              },
-              'expired-callback': () => {
-                setRegRecaptchaToken('')
-                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
-              }
-            })
-            regRecaptchaRef.current.dataset.widgetId = widgetId
-          } catch (err) {
-            console.error('Error rendering register reCAPTCHA:', err)
+        if (tab === 'register' && regRecaptchaRef.current) {
+          if (!regRecaptchaRef.current.dataset.widgetId) {
+            try {
+              regRecaptchaRef.current.innerHTML = ''
+              const widgetId = window.grecaptcha.render(regRecaptchaRef.current, {
+                sitekey: RECAPTCHA_SITE_KEY,
+                callback: (token) => setRegRecaptchaToken(token),
+                'expired-callback': () => {
+                  setRegRecaptchaToken('')
+                  showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+                }
+              })
+              regRecaptchaRef.current.dataset.widgetId = String(widgetId)
+            } catch (err) {
+              console.error('Error rendering register reCAPTCHA:', err)
+            }
           }
         }
 
         // Reset Password reCAPTCHA
-        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current && !resetRecaptchaRef.current.dataset.widgetId) {
-          try {
-            const widgetId = window.grecaptcha.render(resetRecaptchaRef.current, {
-              sitekey: RECAPTCHA_SITE_KEY,
-              callback: (token) => {
-                setResetRecaptchaToken(token)
-              },
-              'expired-callback': () => {
-                setResetRecaptchaToken('')
-                showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
-              }
-            })
-            resetRecaptchaRef.current.dataset.widgetId = widgetId
-          } catch (err) {
-            console.error('Error rendering reset reCAPTCHA:', err)
+        if (tab === 'reset' && resetStep === 1 && resetRecaptchaRef.current) {
+          if (!resetRecaptchaRef.current.dataset.widgetId) {
+            try {
+              resetRecaptchaRef.current.innerHTML = ''
+              const widgetId = window.grecaptcha.render(resetRecaptchaRef.current, {
+                sitekey: RECAPTCHA_SITE_KEY,
+                callback: (token) => setResetRecaptchaToken(token),
+                'expired-callback': () => {
+                  setResetRecaptchaToken('')
+                  showToast('reCAPTCHA telah kadaluarsa. Silakan verifikasi ulang.', 'warning')
+                }
+              })
+              resetRecaptchaRef.current.dataset.widgetId = String(widgetId)
+            } catch (err) {
+              console.error('Error rendering reset reCAPTCHA:', err)
+            }
           }
         }
       })
     }
 
-    renderRecaptcha()
-  }, [tab, resetStep, RECAPTCHA_SITE_KEY, recaptchaReady, showToast])
+    pollTimer = setTimeout(tryRender, 100)
 
-  // Reset reCAPTCHA when tab changes
+    return () => {
+      isMounted = false
+      if (pollTimer) clearTimeout(pollTimer)
+    }
+  }, [isActive, tab, resetStep, RECAPTCHA_SITE_KEY, showToast])
+
+  // Clear reCAPTCHA tokens & widget dataset when tab or section active status changes
   useEffect(() => {
-    // Reset tokens when tab changes
     setLoginRecaptchaToken('')
     setRegRecaptchaToken('')
     setResetRecaptchaToken('')
 
-    // Reset reCAPTCHA widgets
     const resetWidgets = () => {
-      if (typeof window.grecaptcha !== 'undefined') {
-        const widgets = document.querySelectorAll('.g-recaptcha')
-        widgets.forEach(widget => {
-          const widgetId = widget.dataset.widgetId
-          if (widgetId !== undefined && !isNaN(widgetId)) {
-            try {
-              window.grecaptcha.reset(parseInt(widgetId))
-            } catch (e) {
-              console.error('Error resetting reCAPTCHA:', e)
-            }
+      const widgets = document.querySelectorAll('.g-recaptcha')
+      widgets.forEach(widget => {
+        const widgetId = widget.dataset.widgetId
+        if (widgetId !== undefined && !isNaN(widgetId) && typeof window.grecaptcha !== 'undefined') {
+          try {
+            window.grecaptcha.reset(parseInt(widgetId))
+          } catch (e) {
+            // Ignore reset error
           }
-          widget.innerHTML = ''
-          delete widget.dataset.widgetId
-        })
-      }
+        }
+        widget.innerHTML = ''
+        delete widget.dataset.widgetId
+      })
     }
     resetWidgets()
-  }, [tab, resetStep])
+  }, [tab, resetStep, isActive])
 
   // Countdown timer for Reset Password Resend OTP (60s)
   useEffect(() => {
