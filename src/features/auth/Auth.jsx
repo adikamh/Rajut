@@ -237,22 +237,33 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
     setRegRecaptchaToken('')
     setResetRecaptchaToken('')
 
-    const resetWidgets = () => {
-      const widgets = document.querySelectorAll('.g-recaptcha')
+    const cleanAllRefs = () => {
+      [loginRecaptchaRef, regRecaptchaRef, resetRecaptchaRef].forEach(ref => {
+        if (ref && ref.current) {
+          const widgetId = ref.current.dataset.widgetId
+          if (widgetId !== undefined && !isNaN(widgetId) && typeof window.grecaptcha !== 'undefined') {
+            try {
+              window.grecaptcha.reset(parseInt(widgetId))
+            } catch (e) {}
+          }
+          ref.current.innerHTML = ''
+          delete ref.current.dataset.widgetId
+        }
+      })
+
+      const widgets = document.querySelectorAll('.g-recaptcha, .recaptcha-widget-box')
       widgets.forEach(widget => {
         const widgetId = widget.dataset.widgetId
         if (widgetId !== undefined && !isNaN(widgetId) && typeof window.grecaptcha !== 'undefined') {
           try {
             window.grecaptcha.reset(parseInt(widgetId))
-          } catch (e) {
-            // Ignore reset error
-          }
+          } catch (e) {}
         }
         widget.innerHTML = ''
         delete widget.dataset.widgetId
       })
     }
-    resetWidgets()
+    cleanAllRefs()
   }, [tab, isActive])
 
   const handleLoginSubmit = async (e) => {
@@ -540,7 +551,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
           {/* Login Form */}
           {tab === 'login' ? (
-            <form onSubmit={handleLoginSubmit}>
+            <form key="form-login" onSubmit={handleLoginSubmit}>
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label htmlFor="loginEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <MailIcon size={16} color="#d2691e" /> Alamat Email
@@ -660,8 +671,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
               {/* reCAPTCHA v2 Widget - Login */}
               <div
+                key="recaptcha-box-login"
                 ref={loginRecaptchaRef}
-                className="g-recaptcha"
+                className="recaptcha-widget-box"
                 style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
               ></div>
 
@@ -671,7 +683,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             </form>
           ) : tab === 'register' ? (
             /* Register Form (Direct registration with reCAPTCHA, no OTP) */
-            <form onSubmit={handleRegisterSubmit}>
+            <form key="form-register" onSubmit={handleRegisterSubmit}>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label htmlFor="regName" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <UserIcon size={16} color="#d2691e" /> Nama Lengkap
@@ -799,8 +811,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
               {/* reCAPTCHA v2 Widget - Register */}
               <div
+                key="recaptcha-box-register"
                 ref={regRecaptchaRef}
-                className="g-recaptcha"
+                className="recaptcha-widget-box"
                 style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
               ></div>
 
@@ -810,7 +823,7 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
             </form>
           ) : (
             /* Reset Password Form (Direct Reset with reCAPTCHA) */
-            <form onSubmit={handleResetPasswordSubmit}>
+            <form key="form-reset" onSubmit={handleResetPasswordSubmit}>
               <div className="form-group" style={{ marginBottom: '1rem' }}>
                 <label htmlFor="resetEmail" style={{ fontWeight: '600', color: '#334155', fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <MailIcon size={16} color="#d2691e" /> Alamat Email Akun Terdaftar
@@ -902,8 +915,9 @@ export default function Auth({ isActive, onLoginSuccess, onSectionChange }) {
 
               {/* reCAPTCHA v2 Widget - Reset Password */}
               <div
+                key="recaptcha-box-reset"
                 ref={resetRecaptchaRef}
-                className="g-recaptcha"
+                className="recaptcha-widget-box"
                 style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.5rem', minHeight: '78px' }}
               ></div>
 
